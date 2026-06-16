@@ -1,0 +1,168 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green-dark: #2d6a4f;
+  --green: #40916c;
+  --green-light: #d8f3dc;
+  --red: #c1121f;
+  --gray: #6c757d;
+  --border: #dee2e6;
+  --radius: 8px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  color: #212529;
+  background: #f8fdf9;
+}
+
+a { color: inherit; }
+
+/* Layout */
+.app-header {
+  background: var(--green-dark);
+  padding: 1rem 2rem;
+  color: white;
+}
+.app-logo {
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: white;
+}
+.app-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* Page header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.page-header h1 { font-size: 1.6rem; }
+.header-actions { display: flex; gap: 0.5rem; }
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary { background: var(--green); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--green-dark); }
+.btn-secondary { background: #e9ecef; color: #495057; }
+.btn-secondary:hover { background: #dee2e6; }
+.btn-danger { background: var(--red); color: white; }
+.btn-danger:hover { background: #9d0208; }
+
+/* Status messages */
+.status { color: var(--gray); margin: 1rem 0; }
+.status.error { color: var(--red); }
+
+/* Plant grid */
+.plant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+/* Plant card */
+.plant-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.plant-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.plant-card-photo {
+  height: 140px;
+  background: var(--green-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.plant-card-photo img { width: 100%; height: 100%; object-fit: cover; }
+.photo-placeholder { font-size: 3rem; }
+.photo-placeholder.large { font-size: 6rem; }
+.plant-card-body { padding: 0.75rem 1rem; }
+.plant-card-body h3 { font-size: 1rem; margin-bottom: 0.2rem; }
+.species { font-size: 0.85rem; color: var(--gray); margin-bottom: 0.4rem; font-style: italic; }
+.plant-card-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
+
+/* Sunlight badges */
+.sunlight {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+.sunlight-low { background: #d0e8ff; color: #004085; }
+.sunlight-medium { background: #fff3cd; color: #856404; }
+.sunlight-high { background: #ffe5b4; color: #7d4e00; }
+.last-watered { font-size: 0.75rem; color: var(--gray); }
+
+/* Form */
+.form-page { max-width: 560px; }
+.plant-form { display: flex; flex-direction: column; gap: 1rem; }
+.plant-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.plant-form input,
+.plant-form select,
+.plant-form textarea {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: white;
+}
+.plant-form input:focus,
+.plant-form select:focus,
+.plant-form textarea:focus {
+  outline: 2px solid var(--green);
+  border-color: transparent;
+}
+.required { color: var(--red); }
+
+/* Detail page */
+.detail-body {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.detail-photo {
+  width: 240px;
+  height: 240px;
+  background: var(--green-light);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.detail-photo img { width: 100%; height: 100%; object-fit: cover; }
+.detail-info { flex: 1; min-width: 240px; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; margin-bottom: 1.5rem; }
+dt { font-weight: 600; color: var(--gray); font-size: 0.9rem; }
+dd { font-size: 0.95rem; }
+.notes { margin-bottom: 1.5rem; }
+.notes h3 { font-size: 1rem; margin-bottom: 0.4rem; }
+.notes p { color: #495057; line-height: 1.6; }
+.care-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
