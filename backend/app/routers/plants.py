@@ -1,17 +1,24 @@
+import os
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timedelta, timezone
+
+import httpx
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..models import CareLog as CareLogModel
 from ..models import Plant as PlantModel
 from ..schemas import (
+    CareLogCreate,
+    CareLogEntry,
+    IdentifyResponse,
+    IdentifyResult,
     Plant,
     PlantCreate,
     PlantUpdate,
-    IdentifyRequest,
-    IdentifyResponse,
-    CareLogRequest,
-    CareLogResponse,
+    ScheduledPlant,
+    WaterResponse,
 )
 
 router = APIRouter(prefix="/plants", tags=["plants"])
@@ -61,29 +68,108 @@ def delete_plant(plant_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/{plant_id}/identify", response_model=IdentifyResponse)
-def identify_plant(plant_id: uuid.UUID, payload: IdentifyRequest, db: Session = Depends(get_db)):
+def identify_plant(
+    plant_id: uuid.UUID,
+    image: UploadFile = File(...),
+    organ: str = Form(default="auto"),
+    db: Session = Depends(get_db),
+):
     plant = get_plant_or_404(plant_id, db)
-    # Mock identification — replace with real vision model call
-    identified = "Monstera deliciosa"
-    plant.species = identified
+    api_key = os.environ["PLANTNET_API_KEY"]
+
+    content = image.file.read()
+    with httpx.Client(timeout=30.0) as client:
+        resp = client.post(
+            f"https://my-api.plantnet.org/v2/identify/all?api-key={api_key}&lang=en",
+            files=[("images", (image.filename or "photo.jpg", content, image.content_type))],
+            data={"organs": [organ]},
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"PlantNet API error: {resp.text[:200]}")
+
+    data = resp.json()
+    results = data.get("results", [])
+    if not results:
+        raise HTTPException(status_code=422, detail="No plant identified in the image")
+
+    top = results[0]
+    species = top["species"]["scientificNameWithoutAuthor"]
+    common_names = top["species"].get("commonNames") or []
+    common_name = common_names[0] if common_names else None
+    score = top["score"]
+
+    plant.species = species
+    plant.common_name = common_name
     db.commit()
-    return IdentifyResponse(
-        plant_id=plant.id,
-        identified_species=identified,
-        confidence=0.92,
-        notes="Mock identification result. Integrate a real plant ID API to replace this.",
-    )
+
+    top5 = [
+        IdentifyResult(
+            species=r["species"]["scientificNameWithoutAuthor"],
+            common_name=((r["species"].get("commonNames") or [None])[0]),
+            score=r["score"],
+        )
+        for r in results[:5]
+    ]
+
+    return IdentifyResponse(species=species, common_name=common_name, score=score, all_results=top5)
 
 
-@router.post("/{plant_id}/care-log", response_model=CareLogResponse)
-def log_care_event(plant_id: uuid.UUID, payload: CareLogRequest, db: Session = Depends(get_db)):
+@router.post("/{plant_id}/water", response_model=WaterResponse)
+def water_plant(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     plant = get_plant_or_404(plant_id, db)
-    if payload.event_type == "watering":
-        from datetime import date
-        plant.last_watered = date.today()
-        db.commit()
-    return CareLogResponse(
-        plant_id=plant.id,
-        event_type=payload.event_type,
-        message=f"Logged {payload.event_type} event for {plant.name}.",
+    now = datetime.now(tz=timezone.utc)
+    plant.last_watered = now
+    plant.next_watering = (
+        now + timedelta(days=plant.watering_interval_days)
+        if plant.watering_interval_days
+        else None
     )
+    db.commit()
+    db.refresh(plant)
+    return WaterResponse(
+        plant_id=plant.id,
+        last_watered=plant.last_watered,
+        next_watering=plant.next_watering,
+    )
+
+
+@router.post("/{plant_id}/care-log", response_model=CareLogEntry, status_code=status.HTTP_201_CREATED)
+def log_care_event(
+    plant_id: uuid.UUID, payload: CareLogCreate, db: Session = Depends(get_db)
+):
+    plant = get_plant_or_404(plant_id, db)
+    now = datetime.now(tz=timezone.utc)
+
+    if payload.action == "watered":
+        plant.last_watered = now
+        plant.next_watering = (
+            now + timedelta(days=plant.watering_interval_days)
+            if plant.watering_interval_days
+            else None
+        )
+
+    entry = CareLogModel(
+        id=uuid.uuid4(),
+        plant_id=plant.id,
+        action=payload.action,
+        notes=payload.notes,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.get("/{plant_id}/care-log", response_model=list[CareLogEntry])
+def get_care_log(plant_id: uuid.UUID, db: Session = Depends(get_db)):
+    get_plant_or_404(plant_id, db)
+    return (
+        db.query(CareLogModel)
+        .filter(CareLogModel.plant_id == plant_id)
+        .order_by(CareLogModel.logged_at.desc())
+        .limit(20)
+        .all()
+    )
+
+

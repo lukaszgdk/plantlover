@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -6,8 +7,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .routers import plants
+from .routers import schedule as schedule_router
 
-app = FastAPI(title="PlantLover API", version="0.1.0")
+_missing = [v for v in ("DATABASE_URL", "PLANTNET_API_KEY") if not os.environ.get(v)]
+if _missing:
+    raise RuntimeError(f"Missing required environment variables: {', '.join(_missing)}")
+
+app = FastAPI(title="PlantLover API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(plants.router)
+app.include_router(schedule_router.router)
 
 
 @app.get("/health")
@@ -25,9 +32,6 @@ def health():
     return {"status": "ok"}
 
 
-# Serve built React frontend (production).
-# Structure: /opt/plantlover/frontend/dist relative to this file's location:
-#   /opt/plantlover/backend/app/main.py -> ../../.. -> /opt/plantlover
 FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
 if FRONTEND_DIST.exists():

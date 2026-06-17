@@ -17,6 +17,10 @@ export function PlantList() {
       .finally(() => setLoading(false));
   }, []);
 
+  function handleWatered(updated: Plant) {
+    setPlants((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  }
+
   if (loading) return <p className="status">Loading plants…</p>;
   if (error) return <p className="status error">Error: {error}</p>;
 
@@ -33,7 +37,7 @@ export function PlantList() {
       ) : (
         <div className="plant-grid">
           {plants.map((p) => (
-            <PlantCard key={p.id} plant={p} />
+            <PlantCard key={p.id} plant={p} onWatered={handleWatered} />
           ))}
         </div>
       )}

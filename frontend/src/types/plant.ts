@@ -4,9 +4,11 @@ export interface Plant {
   id: string;
   name: string;
   species: string | null;
+  common_name: string | null;
   photo_url: string | null;
   watering_interval_days: number | null;
   last_watered: string | null;
+  next_watering: string | null;
   sunlight: SunlightLevel | null;
   notes: string | null;
   created_at: string;
@@ -15,6 +17,7 @@ export interface Plant {
 export interface PlantCreate {
   name: string;
   species?: string;
+  common_name?: string;
   photo_url?: string;
   watering_interval_days?: number;
   last_watered?: string;
@@ -23,3 +26,39 @@ export interface PlantCreate {
 }
 
 export interface PlantUpdate extends Partial<PlantCreate> {}
+
+export interface IdentifyResult {
+  species: string;
+  common_name: string | null;
+  score: number;
+}
+
+export interface IdentifyResponse {
+  species: string;
+  common_name: string | null;
+  score: number;
+  all_results: IdentifyResult[];
+}
+
+export interface WaterResponse {
+  plant_id: string;
+  last_watered: string;
+  next_watering: string | null;
+}
+
+export interface ScheduledPlant {
+  id: string;
+  name: string;
+  species: string | null;
+  photo_url: string | null;
+  next_watering: string | null;
+  last_watered: string | null;
+}
+
+export interface CareLogEntry {
+  id: string;
+  plant_id: string;
+  logged_at: string;
+  action: string;
+  notes: string | null;
+}

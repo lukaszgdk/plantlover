@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/plants";
-import type { Plant } from "../types/plant";
+import { PhotoCapture } from "./PhotoCapture";
+import type { IdentifyResponse, Plant } from "../types/plant";
 
 export function PlantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +11,7 @@ export function PlantDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [careMsg, setCareMsg] = useState<string | null>(null);
+  const [watering, setWatering] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -29,20 +31,35 @@ export function PlantDetail() {
 
   async function handleWater() {
     if (!plant) return;
+    setWatering(true);
     try {
-      await api.logCare(plant.id, "watering");
+      await api.water(plant.id);
       const updated = await api.get(plant.id);
       setPlant(updated);
-      setCareMsg("Watering logged!");
+      setCareMsg("Watered! ✅");
       setTimeout(() => setCareMsg(null), 3000);
     } catch (e) {
       setCareMsg((e as Error).message);
+    } finally {
+      setWatering(false);
     }
+  }
+
+  function handleIdentified(result: IdentifyResponse) {
+    if (!plant) return;
+    setPlant({ ...plant, species: result.species, common_name: result.common_name });
   }
 
   if (loading) return <p className="status">Loading…</p>;
   if (error) return <p className="status error">{error}</p>;
   if (!plant) return null;
+
+  const lastWateredDisplay = plant.last_watered
+    ? new Date(plant.last_watered).toLocaleString()
+    : null;
+  const nextWateringDisplay = plant.next_watering
+    ? new Date(plant.next_watering).toLocaleDateString()
+    : null;
 
   return (
     <div className="detail-page">
@@ -72,7 +89,14 @@ export function PlantDetail() {
             {plant.species && (
               <>
                 <dt>Species</dt>
-                <dd>{plant.species}</dd>
+                <dd>
+                  {plant.species}
+                  {plant.common_name && (
+                    <span style={{ color: "var(--gray)", fontStyle: "italic" }}>
+                      {" "}({plant.common_name})
+                    </span>
+                  )}
+                </dd>
               </>
             )}
             {plant.sunlight && (
@@ -87,10 +111,16 @@ export function PlantDetail() {
                 <dd>{plant.watering_interval_days} days</dd>
               </>
             )}
-            {plant.last_watered && (
+            {lastWateredDisplay && (
               <>
                 <dt>Last watered</dt>
-                <dd>{plant.last_watered}</dd>
+                <dd>{lastWateredDisplay}</dd>
+              </>
+            )}
+            {nextWateringDisplay && (
+              <>
+                <dt>Next watering</dt>
+                <dd>{nextWateringDisplay}</dd>
               </>
             )}
             <dt>Added</dt>
@@ -105,11 +135,19 @@ export function PlantDetail() {
           )}
 
           <div className="care-actions">
-            <button className="btn btn-primary" onClick={handleWater}>
-              💧 Log Watering
+            <button
+              className="btn btn-primary"
+              onClick={handleWater}
+              disabled={watering}
+            >
+              {watering ? "Watering…" : "💧 Mark as watered"}
             </button>
           </div>
           {careMsg && <p className="status">{careMsg}</p>}
+
+          <div style={{ marginTop: "1.5rem" }}>
+            <PhotoCapture plantId={plant.id} onIdentified={handleIdentified} />
+          </div>
         </div>
       </div>
     </div>

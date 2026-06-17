@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel
 
@@ -10,9 +10,11 @@ SunlightLevel = Literal["low", "medium", "high"]
 class PlantBase(BaseModel):
     name: str
     species: str | None = None
+    common_name: str | None = None
     photo_url: str | None = None
     watering_interval_days: int | None = None
-    last_watered: date | None = None
+    last_watered: datetime | None = None
+    next_watering: datetime | None = None
     sunlight: SunlightLevel | None = None
     notes: str | None = None
 
@@ -32,23 +34,50 @@ class Plant(PlantBase):
     model_config = {"from_attributes": True}
 
 
-class IdentifyRequest(BaseModel):
-    image_base64: str
+# Identify
+class IdentifyResult(BaseModel):
+    species: str
+    common_name: str | None
+    score: float
 
 
 class IdentifyResponse(BaseModel):
+    species: str
+    common_name: str | None
+    score: float
+    all_results: list[IdentifyResult]
+
+
+# Watering
+class WaterResponse(BaseModel):
     plant_id: uuid.UUID
-    identified_species: str
-    confidence: float
-    notes: str
+    last_watered: datetime
+    next_watering: datetime | None
 
 
-class CareLogRequest(BaseModel):
-    event_type: Literal["watering", "fertilizing"]
+# Schedule
+class ScheduledPlant(BaseModel):
+    id: uuid.UUID
+    name: str
+    species: str | None
+    photo_url: str | None
+    next_watering: datetime | None
+    last_watered: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+# Care log
+class CareLogCreate(BaseModel):
+    action: str
     notes: str | None = None
 
 
-class CareLogResponse(BaseModel):
+class CareLogEntry(BaseModel):
+    id: uuid.UUID
     plant_id: uuid.UUID
-    event_type: str
-    message: str
+    logged_at: datetime
+    action: str
+    notes: str | None
+
+    model_config = {"from_attributes": True}

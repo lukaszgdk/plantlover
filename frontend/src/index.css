@@ -166,3 +166,55 @@ dd { font-size: 0.95rem; }
 .notes h3 { font-size: 1rem; margin-bottom: 0.4rem; }
 .notes p { color: #495057; line-height: 1.6; }
 .care-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* Nav */
+.app-header { display: flex; align-items: center; justify-content: space-between; }
+.app-nav { display: flex; gap: 1rem; }
+.nav-link { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.95rem; padding: 0.25rem 0; }
+.nav-link:hover, .nav-link.active { color: white; border-bottom: 2px solid white; }
+
+/* Water button on card */
+.btn-water {
+  margin-top: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* Photo capture */
+.photo-capture { margin-top: 0.5rem; }
+.photo-capture-trigger { cursor: pointer; }
+.photo-capture-preview { display: flex; flex-direction: column; gap: 0.75rem; }
+.capture-preview-img {
+  max-width: 260px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.capture-actions { display: flex; gap: 0.5rem; }
+.identify-result {
+  background: var(--green-light);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  max-width: 320px;
+}
+.identify-species { font-weight: 600; font-style: italic; }
+.identify-common { color: var(--gray); font-size: 0.9rem; }
+.identify-score { font-size: 0.85rem; color: var(--gray); margin-top: 0.25rem; }
+.identify-warning { color: #856404; font-size: 0.85rem; margin-top: 0.25rem; }
+
+/* Calendar legend */
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--gray);
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
