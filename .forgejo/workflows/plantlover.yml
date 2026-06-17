@@ -1,129 +1,170 @@
-name: PlantLover CI/CD
+name: "PlantLover - Deploy"
 
 on:
   push:
     branches: [main]
 
+env:
+  OPENBAO_ADDR: "https://10.10.20.30:8200"
+  OPENBAO_NAMESPACE: "HomeLab"
+  OPENBAO_ROLE_ID: "7cec6a78-0b3f-80a8-7d6b-67134f8532b6"
+  PVE2_HOST: "192.168.4.70"
+  PLANTLOVER_CT: "270"
+  PLANTLOVER_IP: "10.10.20.70"
+  POSTGRES_HOST: "10.10.20.50"
+
 jobs:
-  build-and-deploy:
+  deploy:
+    name: "Deploy PlantLover (CT 270)"
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: "Install dependencies"
+        run: |
+          apt-get update && apt-get install -y curl jq sshpass openssh-client ca-certificates
 
-      # ── Backend ──────────────────────────────────────────────
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
+      - name: "Install homelab CA certificate"
+        run: |
+          curl -sf http://10.10.30.100/HomeLab/hefajstos/raw/branch/main/homelab-ca.crt \
+            -o /usr/local/share/ca-certificates/homelab-ca.crt
+          update-ca-certificates
 
-      - name: Install backend dependencies
-        working-directory: backend
-        run: pip install -r requirements.txt
-
-      - name: Verify Alembic migrations are consistent
-        working-directory: backend
+      - name: "Fetch secrets from OpenBao"
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          # Placeholder so main.py startup check passes in CI without a real key
-          PLANTNET_API_KEY: ci-placeholder
-        run: alembic check
-
-      # ── Frontend ─────────────────────────────────────────────
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
-
-      - name: Upload frontend dist artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist/
-
-      # ── Secrets from OpenBao ─────────────────────────────────
-      - name: Fetch secrets from OpenBao
-        id: openbao
-        env:
-          OPENBAO_ROLE_ID: ${{ secrets.OPENBAO_ROLE_ID }}
           OPENBAO_SECRET_ID: ${{ secrets.OPENBAO_SECRET_ID }}
         run: |
-          VAULT_TOKEN=$(curl -sf -X POST \
-            -H "X-Vault-Namespace: HomeLab" \
-            http://10.10.20.30:8200/v1/auth/forgejo/login \
-            -d "{\"role_id\":\"$OPENBAO_ROLE_ID\",\"secret_id\":\"$OPENBAO_SECRET_ID\"}" \
-            | jq -r '.auth.client_token')
+          set -euo pipefail
 
-          if [ -z "$VAULT_TOKEN" ] || [ "$VAULT_TOKEN" = "null" ]; then
-            echo "ERROR: OpenBao authentication failed" >&2
+          echo "Authenticating to OpenBao..."
+          HTTP_STATUS=$(curl -s -o /tmp/openbao_auth.json -w "%{http_code}" \
+            --connect-timeout 10 --max-time 15 \
+            -X POST \
+            -H "X-Vault-Namespace: ${OPENBAO_NAMESPACE}" \
+            -H "Content-Type: application/json" \
+            -d "{\"role_id\":\"${OPENBAO_ROLE_ID}\",\"secret_id\":\"${OPENBAO_SECRET_ID}\"}" \
+            "${OPENBAO_ADDR}/v1/auth/forgejo/login")
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "::error::OpenBao AppRole auth failed — HTTP ${HTTP_STATUS}"
+            cat /tmp/openbao_auth.json
             exit 1
           fi
 
+          VAULT_TOKEN=$(jq -r '.auth.client_token // ""' /tmp/openbao_auth.json)
+          [ -z "$VAULT_TOKEN" ] && { echo "::error::No client_token in response."; exit 1; }
           echo "::add-mask::$VAULT_TOKEN"
 
-          PLANTNET_API_KEY=$(curl -sf \
-            -H "X-Vault-Token: $VAULT_TOKEN" \
-            -H "X-Vault-Namespace: HomeLab" \
-            http://10.10.20.30:8200/v1/secrets/data/plantlover \
-            | jq -r '.data.data.PLANTNET_API_KEY')
+          read_secret() {
+            local path="$1" dest="$2"
+            local status
+            status=$(curl -s -o "$dest" -w "%{http_code}" \
+              --connect-timeout 10 --max-time 15 \
+              -H "X-Vault-Namespace: ${OPENBAO_NAMESPACE}" \
+              -H "X-Vault-Token: ${VAULT_TOKEN}" \
+              "${OPENBAO_ADDR}/v1/${path}")
+            if [ "$status" != "200" ]; then
+              echo "::error::Failed to read ${path} — HTTP ${status}"
+              cat "$dest"
+              exit 1
+            fi
+          }
 
-          if [ -z "$PLANTNET_API_KEY" ] || [ "$PLANTNET_API_KEY" = "null" ]; then
-            echo "ERROR: Could not read PLANTNET_API_KEY from OpenBao" >&2
-            exit 1
-          fi
+          # SSH password for pve2 (dostep do CT przez pct exec)
+          read_secret "secrets/data/homelab/proxmox/automation" /tmp/openbao_proxmox.json
+          PVE2_SSH_PASSWORD=$(jq -r '.data.data.ssh_password_pve2 // ""' /tmp/openbao_proxmox.json)
+          [ -z "$PVE2_SSH_PASSWORD" ] && { echo "::error::ssh_password_pve2 not found."; exit 1; }
 
-          echo "::add-mask::$PLANTNET_API_KEY"
-          echo "PLANTNET_API_KEY=$PLANTNET_API_KEY" >> "$GITHUB_ENV"
+          # Haslo do bazy plantlover
+          read_secret "secrets/data/homelab/postgres/plantlover" /tmp/openbao_plantlover.json
+          PLANTLOVER_DB_PASS=$(jq -r '.data.data.password // ""' /tmp/openbao_plantlover.json)
+          [ -z "$PLANTLOVER_DB_PASS" ] && { echo "::error::postgres/plantlover password not found."; exit 1; }
 
-      # ── Deploy ───────────────────────────────────────────────
-      - name: Deploy to server
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          PLANTNET_API_KEY: ${{ env.PLANTNET_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Klucz PlantNet API
+          read_secret "secrets/data/plantlover" /tmp/openbao_plantlover_app.json
+          PLANTNET_API_KEY=$(jq -r '.data.data.PLANTNET_API_KEY // ""' /tmp/openbao_plantlover_app.json)
+          [ -z "$PLANTNET_API_KEY" ] && { echo "::error::PLANTNET_API_KEY not found in secrets/data/plantlover."; exit 1; }
+
+          for val in "$PVE2_SSH_PASSWORD" "$PLANTLOVER_DB_PASS" "$PLANTNET_API_KEY"; do
+            [ -n "$val" ] && echo "::add-mask::$val"
+          done
+
+          echo "PVE2_SSH_PASSWORD=${PVE2_SSH_PASSWORD}"   >> "$GITHUB_ENV"
+          echo "PLANTLOVER_DB_PASS=${PLANTLOVER_DB_PASS}" >> "$GITHUB_ENV"
+          echo "PLANTNET_API_KEY=${PLANTNET_API_KEY}"     >> "$GITHUB_ENV"
+
+      - name: "Setup SSH to pve2"
         run: |
-          # Write SSH key
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -H "${PVE2_HOST}" >> ~/.ssh/known_hosts
+          ssh-keygen -t ed25519 -N "" -C "forgejo-temp-plantlover" -f ~/.ssh/id_temp
+          chmod 600 ~/.ssh/id_temp
+          sshpass -p "$PVE2_SSH_PASSWORD" ssh-copy-id -i ~/.ssh/id_temp.pub root@"${PVE2_HOST}"
+          cat >> ~/.ssh/config << EOF
+          Host pve2
+            HostName ${PVE2_HOST}
+            User root
+            IdentityFile ~/.ssh/id_temp
+            StrictHostKeyChecking no
+          EOF
+          chmod 600 ~/.ssh/config
 
-          # Copy built frontend
-          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
-            frontend/dist/ \
-            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/plantlover/frontend/dist/"
-
-          # Deploy backend: pull latest, run migrations, restart service
-          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" bash -s << ENDSSH
+      - name: "Pull latest code into CT 270"
+        run: |
+          ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c '
             set -euo pipefail
-            cd /opt/plantlover
+            git -C /opt/plantlover pull --ff-only origin main
+          '"
 
-            git pull --ff-only origin main
+      - name: "Build frontend in CT 270"
+        run: |
+          ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c '
+            set -euo pipefail
+            cd /opt/plantlover/frontend
+            npm ci --silent
+            npm run build
+          '"
 
-            export DATABASE_URL="${DATABASE_URL}"
-            export PLANTNET_API_KEY="${PLANTNET_API_KEY}"
+      - name: "Update .env in CT 270"
+        run: |
+          DATABASE_URL="postgresql://plantlover:${PLANTLOVER_DB_PASS}@${POSTGRES_HOST}:5432/plantlover"
+          ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c \
+            'printf \"DATABASE_URL=%s\nPLANTNET_API_KEY=%s\n\" \
+              \"${DATABASE_URL}\" \"${PLANTNET_API_KEY}\" \
+              > /opt/plantlover/backend/.env && chmod 600 /opt/plantlover/backend/.env'"
 
-            # Run migrations
-            cd backend
-            alembic upgrade head
+      - name: "Run Alembic migrations in CT 270"
+        run: |
+          ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c '
+            set -euo pipefail
+            cd /opt/plantlover/backend
+            .venv/bin/alembic upgrade head
+          '"
 
-            # Restart the service (adjust to your init system)
-            sudo systemctl restart plantlover
-          ENDSSH
+      - name: "Restart PlantLover service"
+        run: |
+          ssh pve2 "pct exec ${PLANTLOVER_CT} -- systemctl restart plantlover"
 
-          # Scrub key
-          rm -f ~/.ssh/deploy_key
+      - name: "Health check"
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 12); do
+            if ssh pve2 "pct exec ${PLANTLOVER_CT} -- curl -sf http://localhost:8000/health"; then
+              echo "PlantLover: OK"
+              echo "App:      http://${PLANTLOVER_IP}:8000"
+              echo "API docs: http://${PLANTLOVER_IP}:8000/docs"
+              break
+            fi
+            [ "$i" -eq 12 ] && { echo "::error::PlantLover did not become healthy."; exit 1; }
+            echo "Attempt ${i}/12 — retrying in 5s..."
+            sleep 5
+          done
+
+      - name: "Cleanup SSH credentials"
+        if: always()
+        run: |
+          if [ -f ~/.ssh/id_temp.pub ]; then
+            sshpass -p "$PVE2_SSH_PASSWORD" ssh root@"${PVE2_HOST}" \
+              "sed -i '/forgejo-temp-plantlover/d' ~/.ssh/authorized_keys" 2>/dev/null || true
+          fi
+          rm -f ~/.ssh/id_temp ~/.ssh/id_temp.pub ~/.ssh/config /tmp/openbao_*.json || true
