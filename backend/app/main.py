@@ -23,9 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(plants.router)
-app.include_router(rooms.router)
-app.include_router(schedule_router.router)
+app.include_router(plants.router, prefix="/api")
+app.include_router(rooms.router, prefix="/api")
+app.include_router(schedule_router.router, prefix="/api")
 
 # Serve uploaded plant photos
 _uploads_dir = Path(__file__).parent.parent / "uploads"

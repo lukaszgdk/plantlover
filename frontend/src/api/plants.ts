@@ -10,7 +10,7 @@ import type {
   WaterResponse,
 } from "../types/plant";
 
-const BASE = "/plants";
+const BASE = "/api/plants";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
@@ -90,11 +90,11 @@ export const api = {
   getCareLog: (id: string) => request<CareLogEntry[]>(`${BASE}/${id}/care-log`),
 
   getSchedule: (dueToday = false) =>
-    request<ScheduledPlant[]>(`/schedule${dueToday ? "?due_today=true" : ""}`),
+    request<ScheduledPlant[]>(`/api/schedule${dueToday ? "?due_today=true" : ""}`),
 
   // ── Rooms ─────────────────────────────────────────────────────────────────
-  listRooms: () => request<Room[]>("/rooms"),
+  listRooms: () => request<Room[]>("/api/rooms"),
 
   createRoom: (data: { name: string; icon?: string }) =>
-    json<Room>("/rooms", "POST", data),
+    json<Room>("/api/rooms", "POST", data),
 };
