@@ -16,11 +16,11 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 _DEFAULT_ROOMS = [
-    {"name": "Salon", "icon": "🛋️"},
-    {"name": "Sypialnia", "icon": "🛏️"},
-    {"name": "Kuchnia", "icon": "🍳"},
-    {"name": "Łazienka", "icon": "🚿"},
-    {"name": "Balkon", "icon": "🌿"},
+    {"name": "Salon",        "icon": "🛋️"},
+    {"name": "Sypialnia",    "icon": "🛏️"},
+    {"name": "Kuchnia",      "icon": "🍳"},
+    {"name": "Pokój dzieci", "icon": "🧸"},
+    {"name": "Balkon",       "icon": "🌿"},
 ]
 
 

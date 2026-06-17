@@ -54,6 +54,7 @@ export function PlantList() {
           </button>
           {rooms.map((r) => {
             const count = plants.filter((p) => p.room_id === r.id).length;
+            if (count === 0 && selectedRoomId !== r.id) return null;
             return (
               <button
                 key={r.id}
@@ -64,12 +65,18 @@ export function PlantList() {
               </button>
             );
           })}
-          <button
-            className={`room-tab${selectedRoomId === "__none__" ? " active" : ""}`}
-            onClick={() => setSelectedRoomId("__none__")}
-          >
-            No room ({plants.filter((p) => !p.room_id).length})
-          </button>
+          {(() => {
+            const noRoomCount = plants.filter((p) => !p.room_id).length;
+            if (noRoomCount === 0 && selectedRoomId !== "__none__") return null;
+            return (
+              <button
+                className={`room-tab${selectedRoomId === "__none__" ? " active" : ""}`}
+                onClick={() => setSelectedRoomId("__none__")}
+              >
+                No room ({noRoomCount})
+              </button>
+            );
+          })()}
         </div>
       )}
 
