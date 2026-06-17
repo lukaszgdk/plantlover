@@ -45,8 +45,13 @@ export function PlantCard({ plant, onWatered }: Props) {
             {plant.sunlight && (
               <span className={`sunlight sunlight-${plant.sunlight}`}>{plant.sunlight}</span>
             )}
-            {displayDate && (
+            {displayDate ? (
               <span className="last-watered">Watered {displayDate}</span>
+            ) : (
+              <span className="never-watered">
+                <span className="never-watered-dot" />
+                Never watered
+              </span>
             )}
           </div>
           <button

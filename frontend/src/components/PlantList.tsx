@@ -25,12 +25,29 @@ export function PlantList() {
     setPlants((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   }
 
-  const filtered =
+  function sortPlants(list: Plant[]): Plant[] {
+    const now = Date.now();
+    function priority(p: Plant): number {
+      if (!p.last_watered) return 0;                          // never watered
+      if (p.next_watering && new Date(p.next_watering).getTime() < now) return 1; // overdue
+      return 2;                                               // upcoming
+    }
+    return [...list].sort((a, b) => {
+      const pd = priority(a) - priority(b);
+      if (pd !== 0) return pd;
+      const at = a.next_watering ? new Date(a.next_watering).getTime() : Infinity;
+      const bt = b.next_watering ? new Date(b.next_watering).getTime() : Infinity;
+      return at - bt;
+    });
+  }
+
+  const filtered = sortPlants(
     selectedRoomId === "__none__"
       ? plants.filter((p) => !p.room_id)
       : selectedRoomId
         ? plants.filter((p) => p.room_id === selectedRoomId)
-        : plants;
+        : plants,
+  );
 
   if (loading) return <p className="status">Loading plants…</p>;
   if (error) return <p className="status error">Error: {error}</p>;

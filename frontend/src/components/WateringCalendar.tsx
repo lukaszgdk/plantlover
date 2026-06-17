@@ -8,18 +8,17 @@ import { api } from "../api/plants";
 import type { ScheduledPlant } from "../types/plant";
 
 function eventColor(plant: ScheduledPlant): string {
+  if (!plant.last_watered) return "#c1121f"; // never watered → always red
   if (!plant.next_watering) return "#40916c";
   const now = new Date();
   const nextWatering = new Date(plant.next_watering);
   const todayEnd = new Date(now);
   todayEnd.setHours(23, 59, 59, 999);
 
-  if (plant.last_watered) {
-    const lastWatered = new Date(plant.last_watered);
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-    if (lastWatered >= todayStart) return "#40916c";
-  }
+  const lastWatered = new Date(plant.last_watered);
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  if (lastWatered >= todayStart) return "#40916c";
   if (nextWatering < now) return "#c1121f";
   if (nextWatering <= todayEnd) return "#e07c24";
   return "#40916c";

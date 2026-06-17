@@ -319,3 +319,26 @@ dd { font-size: 0.95rem; }
 .identify-alt-species { font-style: italic; font-weight: 500; }
 .identify-alt-common { color: var(--gray); }
 .identify-alt-score { color: var(--gray); font-size: 0.8rem; }
+
+/* Never-watered badge */
+.never-watered {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #1971c2;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.never-watered-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #339af0;
+  flex-shrink: 0;
+  animation: pulse-blue 1.8s ease-in-out infinite;
+}
+@keyframes pulse-blue {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
