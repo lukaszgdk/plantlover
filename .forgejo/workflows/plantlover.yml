@@ -3,6 +3,7 @@ name: "PlantLover - Deploy"
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 env:
   OPENBAO_ADDR: "https://10.10.20.30:8200"
