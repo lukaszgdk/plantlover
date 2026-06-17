@@ -122,7 +122,7 @@ jobs:
           ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c '
             set -euo pipefail
             cd /opt/plantlover/frontend
-            npm ci --silent
+            npm install --silent
             npm run build
           '"
 
