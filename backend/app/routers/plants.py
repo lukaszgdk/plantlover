@@ -1,6 +1,7 @@
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -12,16 +13,18 @@ from ..models import Plant as PlantModel
 from ..schemas import (
     CareLogCreate,
     CareLogEntry,
+    IdentifyNewResponse,
     IdentifyResponse,
     IdentifyResult,
     Plant,
-    PlantCreate,
     PlantUpdate,
-    ScheduledPlant,
     WaterResponse,
 )
 
 router = APIRouter(prefix="/plants", tags=["plants"])
+
+UPLOADS_DIR = Path(__file__).resolve().parents[2] / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
 
 
 def get_plant_or_404(plant_id: uuid.UUID, db: Session) -> PlantModel:
@@ -31,25 +34,99 @@ def get_plant_or_404(plant_id: uuid.UUID, db: Session) -> PlantModel:
     return plant
 
 
+def _save_upload(file: UploadFile, content: bytes) -> str:
+    ext = Path(file.filename or "photo.jpg").suffix or ".jpg"
+    filename = f"{uuid.uuid4()}{ext}"
+    (UPLOADS_DIR / filename).write_bytes(content)
+    return f"/uploads/{filename}"
+
+
+def _call_plantnet(image_bytes: list[bytes], filenames: list[str]) -> dict:
+    api_key = os.environ["PLANTNET_API_KEY"]
+    files = [("images", (fn, data, "image/jpeg")) for data, fn in zip(image_bytes, filenames)]
+    with httpx.Client(timeout=30.0) as client:
+        resp = client.post(
+            f"https://my-api.plantnet.org/v2/identify/all?api-key={api_key}&lang=en",
+            files=files,
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"PlantNet API error: {resp.text[:200]}")
+    return resp.json()
+
+
+def _parse_results(data: dict) -> list[IdentifyResult]:
+    return [
+        IdentifyResult(
+            species=r["species"]["scientificNameWithoutAuthor"],
+            common_name=((r["species"].get("commonNames") or [None])[0]),
+            score=r["score"],
+        )
+        for r in data.get("results", [])
+    ]
+
+
+# ── POST /plants/identify-new ─────────────────────────────────────────────────
+# Defined before /{plant_id} routes to prevent routing ambiguity
+@router.post("/identify-new", response_model=IdentifyNewResponse)
+def identify_new(images: list[UploadFile] = File(...)):
+    if not images:
+        raise HTTPException(status_code=400, detail="At least one image is required")
+    contents = [img.file.read() for img in images]
+    filenames = [img.filename or f"photo{i}.jpg" for i, img in enumerate(images)]
+    results = _parse_results(_call_plantnet(contents, filenames))
+    if not results:
+        raise HTTPException(status_code=422, detail="No plant identified in the images")
+    return IdentifyNewResponse(top=results[0], alternatives=results[1:6])
+
+
+# ── GET /plants ────────────────────────────────────────────────────────────────
 @router.get("", response_model=list[Plant])
 def list_plants(db: Session = Depends(get_db)):
     return db.query(PlantModel).order_by(PlantModel.created_at.desc()).all()
 
 
+# ── POST /plants (multipart form + optional photo file) ───────────────────────
 @router.post("", response_model=Plant, status_code=status.HTTP_201_CREATED)
-def create_plant(payload: PlantCreate, db: Session = Depends(get_db)):
-    plant = PlantModel(**payload.model_dump())
+async def create_plant(
+    name: str = Form(...),
+    species: str | None = Form(None),
+    common_name: str | None = Form(None),
+    photo_url: str | None = Form(None),
+    watering_interval_days: int | None = Form(None),
+    sunlight: str | None = Form(None),
+    notes: str | None = Form(None),
+    room_id: str | None = Form(None),
+    photo: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+):
+    final_photo_url = photo_url or None
+    if photo and photo.filename:
+        content = await photo.read()
+        final_photo_url = _save_upload(photo, content)
+
+    plant = PlantModel(
+        name=name,
+        species=species or None,
+        common_name=common_name or None,
+        photo_url=final_photo_url,
+        watering_interval_days=watering_interval_days,
+        sunlight=sunlight or None,
+        notes=notes or None,
+        room_id=uuid.UUID(room_id) if room_id else None,
+    )
     db.add(plant)
     db.commit()
     db.refresh(plant)
     return plant
 
 
+# ── GET /plants/{plant_id} ─────────────────────────────────────────────────────
 @router.get("/{plant_id}", response_model=Plant)
 def get_plant(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     return get_plant_or_404(plant_id, db)
 
 
+# ── PUT /plants/{plant_id} ─────────────────────────────────────────────────────
 @router.put("/{plant_id}", response_model=Plant)
 def update_plant(plant_id: uuid.UUID, payload: PlantUpdate, db: Session = Depends(get_db)):
     plant = get_plant_or_404(plant_id, db)
@@ -60,6 +137,18 @@ def update_plant(plant_id: uuid.UUID, payload: PlantUpdate, db: Session = Depend
     return plant
 
 
+# ── PATCH /plants/{plant_id} ──────────────────────────────────────────────────
+@router.patch("/{plant_id}", response_model=Plant)
+def patch_plant(plant_id: uuid.UUID, payload: PlantUpdate, db: Session = Depends(get_db)):
+    plant = get_plant_or_404(plant_id, db)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(plant, field, value)
+    db.commit()
+    db.refresh(plant)
+    return plant
+
+
+# ── DELETE /plants/{plant_id} ─────────────────────────────────────────────────
 @router.delete("/{plant_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_plant(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     plant = get_plant_or_404(plant_id, db)
@@ -67,6 +156,7 @@ def delete_plant(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     db.commit()
 
 
+# ── POST /plants/{plant_id}/identify ─────────────────────────────────────────
 @router.post("/{plant_id}/identify", response_model=IdentifyResponse)
 def identify_plant(
     plant_id: uuid.UUID,
@@ -75,44 +165,22 @@ def identify_plant(
     db: Session = Depends(get_db),
 ):
     plant = get_plant_or_404(plant_id, db)
-    api_key = os.environ["PLANTNET_API_KEY"]
-
     content = image.file.read()
-    with httpx.Client(timeout=30.0) as client:
-        resp = client.post(
-            f"https://my-api.plantnet.org/v2/identify/all?api-key={api_key}&lang=en",
-            files=[("images", (image.filename or "photo.jpg", content, image.content_type))],
-            data={"organs": [organ]},
-        )
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"PlantNet API error: {resp.text[:200]}")
-
-    data = resp.json()
-    results = data.get("results", [])
+    results = _parse_results(_call_plantnet([content], [image.filename or "photo.jpg"]))
     if not results:
         raise HTTPException(status_code=422, detail="No plant identified in the image")
 
     top = results[0]
-    species = top["species"]["scientificNameWithoutAuthor"]
-    common_names = top["species"].get("commonNames") or []
-    common_name = common_names[0] if common_names else None
-    score = top["score"]
-
-    plant.species = species
-    plant.common_name = common_name
+    plant.species = top.species
+    plant.common_name = top.common_name
     db.commit()
 
-    top5 = [
-        IdentifyResult(
-            species=r["species"]["scientificNameWithoutAuthor"],
-            common_name=((r["species"].get("commonNames") or [None])[0]),
-            score=r["score"],
-        )
-        for r in results[:5]
-    ]
-
-    return IdentifyResponse(species=species, common_name=common_name, score=score, all_results=top5)
+    return IdentifyResponse(
+        species=top.species,
+        common_name=top.common_name,
+        score=top.score,
+        all_results=results[:5],
+    )
 
 
 @router.post("/{plant_id}/water", response_model=WaterResponse)

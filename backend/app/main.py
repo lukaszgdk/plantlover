@@ -6,14 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .routers import plants
+from .routers import plants, rooms
 from .routers import schedule as schedule_router
 
 _missing = [v for v in ("DATABASE_URL", "PLANTNET_API_KEY") if not os.environ.get(v)]
 if _missing:
     raise RuntimeError(f"Missing required environment variables: {', '.join(_missing)}")
 
-app = FastAPI(title="PlantLover API", version="0.2.0")
+app = FastAPI(title="PlantLover API", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +24,13 @@ app.add_middleware(
 )
 
 app.include_router(plants.router)
+app.include_router(rooms.router)
 app.include_router(schedule_router.router)
+
+# Serve uploaded plant photos
+_uploads_dir = Path(__file__).parent.parent / "uploads"
+_uploads_dir.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 
 
 @app.get("/health")

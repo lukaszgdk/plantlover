@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         "/plants": apiTarget,
+        "/rooms": apiTarget,
+        "/schedule": apiTarget,
+        "/uploads": apiTarget,
         "/health": apiTarget,
       },
     },

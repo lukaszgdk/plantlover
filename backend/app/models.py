@@ -7,6 +7,16 @@ from sqlalchemy.dialects.postgresql import UUID
 from .database import Base
 
 
+class Room(Base):
+    __tablename__ = "rooms"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    icon: Mapped[str | None] = mapped_column(String(32))
+
+    plants: Mapped[list["Plant"]] = relationship("Plant", back_populates="room")
+
+
 class Plant(Base):
     __tablename__ = "plants"
 
@@ -21,10 +31,14 @@ class Plant(Base):
     sunlight: Mapped[str | None] = mapped_column(String(16))
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    room_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
+    )
 
     care_logs: Mapped[list["CareLog"]] = relationship(
         "CareLog", back_populates="plant", cascade="all, delete-orphan"
     )
+    room: Mapped["Room | None"] = relationship("Room", back_populates="plants")
 
 
 class CareLog(Base):

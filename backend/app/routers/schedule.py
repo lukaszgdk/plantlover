@@ -13,15 +13,10 @@ router = APIRouter(tags=["schedule"])
 @router.get("/schedule", response_model=list[ScheduledPlant])
 def get_schedule(due_today: bool = False, db: Session = Depends(get_db)):
     now = datetime.now(tz=timezone.utc)
+    query = db.query(PlantModel).filter(PlantModel.next_watering.isnot(None))
+
     if due_today:
         tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        deadline = tomorrow
-    else:
-        deadline = now + timedelta(days=1)
+        query = query.filter(PlantModel.next_watering <= tomorrow)
 
-    return (
-        db.query(PlantModel)
-        .filter(PlantModel.next_watering.isnot(None), PlantModel.next_watering <= deadline)
-        .order_by(PlantModel.next_watering)
-        .all()
-    )
+    return query.order_by(PlantModel.next_watering).all()

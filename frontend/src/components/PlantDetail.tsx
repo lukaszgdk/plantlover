@@ -2,22 +2,26 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/plants";
 import { PhotoCapture } from "./PhotoCapture";
-import type { IdentifyResponse, Plant } from "../types/plant";
+import type { IdentifyResponse, Plant, Room } from "../types/plant";
 
 export function PlantDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [plant, setPlant] = useState<Plant | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [careMsg, setCareMsg] = useState<string | null>(null);
   const [watering, setWatering] = useState(false);
+  const [savingRoom, setSavingRoom] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    api
-      .get(id)
-      .then(setPlant)
+    Promise.all([api.get(id), api.listRooms()])
+      .then(([p, r]) => {
+        setPlant(p);
+        setRooms(r);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -42,6 +46,21 @@ export function PlantDetail() {
       setCareMsg((e as Error).message);
     } finally {
       setWatering(false);
+    }
+  }
+
+  async function handleRoomChange(newRoomId: string) {
+    if (!plant) return;
+    setSavingRoom(true);
+    try {
+      const updated = await api.patch(plant.id, {
+        room_id: newRoomId || undefined,
+      });
+      setPlant(updated);
+    } catch (e) {
+      setCareMsg((e as Error).message);
+    } finally {
+      setSavingRoom(false);
     }
   }
 
@@ -125,6 +144,23 @@ export function PlantDetail() {
             )}
             <dt>Added</dt>
             <dd>{new Date(plant.created_at).toLocaleDateString()}</dd>
+
+            <dt>Room</dt>
+            <dd>
+              <select
+                value={plant.room_id ?? ""}
+                onChange={(e) => handleRoomChange(e.target.value)}
+                disabled={savingRoom}
+                style={{ fontSize: "inherit" }}
+              >
+                <option value="">— no room —</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.icon} {r.name}
+                  </option>
+                ))}
+              </select>
+            </dd>
           </dl>
 
           {plant.notes && (

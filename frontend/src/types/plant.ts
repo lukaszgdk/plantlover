@@ -1,5 +1,11 @@
 export type SunlightLevel = "low" | "medium" | "high";
 
+export interface Room {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
 export interface Plant {
   id: string;
   name: string;
@@ -12,6 +18,8 @@ export interface Plant {
   sunlight: SunlightLevel | null;
   notes: string | null;
   created_at: string;
+  room_id: string | null;
+  room: Room | null;
 }
 
 export interface PlantCreate {
@@ -23,6 +31,7 @@ export interface PlantCreate {
   last_watered?: string;
   sunlight?: SunlightLevel;
   notes?: string;
+  room_id?: string;
 }
 
 export interface PlantUpdate extends Partial<PlantCreate> {}
@@ -40,6 +49,11 @@ export interface IdentifyResponse {
   all_results: IdentifyResult[];
 }
 
+export interface IdentifyNewResponse {
+  top: IdentifyResult;
+  alternatives: IdentifyResult[];
+}
+
 export interface WaterResponse {
   plant_id: string;
   last_watered: string;
@@ -53,6 +67,7 @@ export interface ScheduledPlant {
   photo_url: string | null;
   next_watering: string | null;
   last_watered: string | null;
+  room: Room | null;
 }
 
 export interface CareLogEntry {

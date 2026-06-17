@@ -25,6 +25,11 @@ function eventColor(plant: ScheduledPlant): string {
   return "#40916c";
 }
 
+function eventTitle(plant: ScheduledPlant): string {
+  const roomPrefix = plant.room ? `${plant.room.icon ?? ""} ` : "";
+  return `${roomPrefix}${plant.name}`;
+}
+
 export function WateringCalendar() {
   const [plants, setPlants] = useState<ScheduledPlant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +48,7 @@ export function WateringCalendar() {
     .filter((p) => p.next_watering)
     .map((p) => ({
       id: p.id,
-      title: p.name,
+      title: eventTitle(p),
       date: p.next_watering!.split("T")[0],
       backgroundColor: eventColor(p),
       borderColor: eventColor(p),
