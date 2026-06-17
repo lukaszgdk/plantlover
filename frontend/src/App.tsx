@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, NavLink } from "react-router-do
 import { PlantList } from "./components/PlantList";
 import { PlantDetail } from "./components/PlantDetail";
 import { AddPlantForm } from "./components/AddPlantForm";
+import { EditPlantForm } from "./components/EditPlantForm";
 import { WateringCalendar } from "./components/WateringCalendar";
 import "./index.css";
 
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/plants" replace />} />
           <Route path="/plants" element={<PlantList />} />
           <Route path="/plants/new" element={<AddPlantForm />} />
+          <Route path="/plants/:id/edit" element={<EditPlantForm />} />
           <Route path="/plants/:id" element={<PlantDetail />} />
           <Route path="/calendar" element={<WateringCalendar />} />
         </Routes>

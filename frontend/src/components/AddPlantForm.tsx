@@ -63,6 +63,7 @@ export function AddPlantForm() {
       setResult(res);
       setSpecies(res.top.species);
       setCommonName(res.top.common_name ?? "");
+      setName(res.top.common_name || res.top.species);
       setStep("result");
     } catch (e) {
       setCaptureError((e as Error).message);
@@ -85,6 +86,7 @@ export function AddPlantForm() {
     const alt = result.alternatives[idx];
     setSpecies(alt.species);
     setCommonName(alt.common_name ?? "");
+    setName(alt.common_name || alt.species);
     setShowAlternatives(false);
   }
 

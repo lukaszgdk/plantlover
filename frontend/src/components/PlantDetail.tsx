@@ -88,6 +88,9 @@ export function PlantDetail() {
           <button className="btn btn-secondary" onClick={() => navigate(-1)}>
             ← Back
           </button>
+          <button className="btn btn-secondary" onClick={() => navigate(`/plants/${plant.id}/edit`)}>
+            ✏️ Edit
+          </button>
           <button className="btn btn-danger" onClick={handleDelete}>
             Delete
           </button>
