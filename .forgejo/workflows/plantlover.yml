@@ -134,6 +134,14 @@ jobs:
               \"${DATABASE_URL}\" \"${PLANTNET_API_KEY}\" \
               > /opt/plantlover/backend/.env && chmod 600 /opt/plantlover/backend/.env'"
 
+      - name: "Install Python dependencies in CT 270"
+        run: |
+          ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c '
+            set -euo pipefail
+            cd /opt/plantlover/backend
+            .venv/bin/pip install -q -r requirements.txt
+          '"
+
       - name: "Run Alembic migrations in CT 270"
         run: |
           ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c '
