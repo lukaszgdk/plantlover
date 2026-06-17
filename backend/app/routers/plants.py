@@ -46,7 +46,7 @@ def _call_plantnet(image_bytes: list[bytes], filenames: list[str]) -> dict:
     files = [("images", (fn, data, "image/jpeg")) for data, fn in zip(image_bytes, filenames)]
     with httpx.Client(timeout=30.0) as client:
         resp = client.post(
-            f"https://my-api.plantnet.org/v2/identify/all?api-key={api_key}&lang=en",
+            f"https://my-api.plantnet.org/v2/identify/all?api-key={api_key}&lang=pl",
             files=files,
         )
     if resp.status_code != 200:
