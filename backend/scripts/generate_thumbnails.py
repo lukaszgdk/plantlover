@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from PIL import Image
+from PIL import Image, ImageOps
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 import os
@@ -20,6 +20,7 @@ engine = create_engine(DATABASE_URL)
 
 def make_thumbnail(content: bytes, max_px: int = 400) -> bytes:
     img = Image.open(io.BytesIO(content))
+    img = ImageOps.exif_transpose(img)
     img = img.convert("RGB")
     img.thumbnail((max_px, max_px), Image.LANCZOS)
     buf = io.BytesIO()
@@ -29,7 +30,7 @@ def make_thumbnail(content: bytes, max_px: int = 400) -> bytes:
 
 with engine.connect() as conn:
     rows = conn.execute(
-        text("SELECT id, photo_url FROM plants WHERE photo_url IS NOT NULL AND photo_thumbnail_url IS NULL")
+        text("SELECT id, photo_url FROM plants WHERE photo_url IS NOT NULL")
     ).fetchall()
 
     print(f"Found {len(rows)} plants needing thumbnails")

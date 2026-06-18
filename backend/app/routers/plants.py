@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -41,6 +41,7 @@ def get_plant_or_404(plant_id: uuid.UUID, db: Session) -> PlantModel:
 
 def _make_thumbnail(content: bytes, max_px: int = 400) -> bytes:
     img = Image.open(io.BytesIO(content))
+    img = ImageOps.exif_transpose(img)
     img = img.convert("RGB")
     img.thumbnail((max_px, max_px), Image.LANCZOS)
     buf = io.BytesIO()
