@@ -130,29 +130,6 @@ def ha_dashboard(db: Session = Depends(get_db)):
     for p in plants:
         by_room[p.room].append(p)
 
-    # Widok główny: do podlania + przegląd
-    main_view = """\
-  - title: Przegląd
-    path: plantlover
-    icon: mdi:flower
-    cards:
-
-      - type: custom:auto-entities
-        card:
-          type: entities
-          title: "💧 Wymagają podlania"
-          icon: mdi:water-alert
-          show_header_toggle: false
-        filter:
-          include:
-            - entity_id: "sensor.*_dni_do_podlania"
-              state: "< 1"
-        sort:
-          method: state
-          numeric: true
-
-"""
-
     # Widoki per pokój
     room_views = []
     for room, room_plants in sorted(by_room.items(), key=lambda kv: kv[0].name if kv[0] else ""):
@@ -173,7 +150,6 @@ def ha_dashboard(db: Session = Depends(get_db)):
             plant_cards.append(f"""\
       - type: entities
         title: "{p.name}"
-        icon: mdi:flower
         entities:
           - entity: sensor.{base}_dni_do_podlania{suffix}
             name: Dni do podlania
@@ -186,9 +162,7 @@ def ha_dashboard(db: Session = Depends(get_db)):
         room_views.append(f"""\
   - title: "{room_name}"
     path: {room_slug}
-    icon: mdi:home-floor-1
     cards:
-
 
       - type: button
         name: "💧 Podlej wszystkie w {room_name}"
@@ -201,7 +175,7 @@ def ha_dashboard(db: Session = Depends(get_db)):
 
 {cards_str}""")
 
-    views = "\n\n".join([main_view] + room_views)
+    views = "\n\n".join(room_views)
     yaml = f"title: 🌿 PlantLover\nviews:\n{views}\n"
     return PlainTextResponse(yaml, media_type="text/yaml")
 
