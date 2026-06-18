@@ -1,7 +1,10 @@
+import io
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from PIL import Image
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -36,15 +39,25 @@ def get_plant_or_404(plant_id: uuid.UUID, db: Session) -> PlantModel:
     return plant
 
 
+def _resize_image(content: bytes, max_px: int = 1024) -> bytes:
+    img = Image.open(io.BytesIO(content))
+    img = img.convert("RGB")
+    img.thumbnail((max_px, max_px), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=82, optimize=True)
+    return buf.getvalue()
+
+
 def _save_upload(file: UploadFile, content: bytes) -> str:
-    ext = Path(file.filename or "photo.jpg").suffix or ".jpg"
-    filename = f"{uuid.uuid4()}{ext}"
+    content = _resize_image(content)
+    filename = f"{uuid.uuid4()}.jpg"
     (UPLOADS_DIR / filename).write_bytes(content)
     return f"/uploads/{filename}"
 
 
 def _save_bytes(content: bytes, ext: str = ".jpg") -> str:
-    filename = f"{uuid.uuid4()}{ext}"
+    content = _resize_image(content)
+    filename = f"{uuid.uuid4()}.jpg"
     (UPLOADS_DIR / filename).write_bytes(content)
     return f"/uploads/{filename}"
 
