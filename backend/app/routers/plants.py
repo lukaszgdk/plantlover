@@ -116,6 +116,8 @@ def ha_dashboard(db: Session = Depends(get_db)):
     from fastapi.responses import PlainTextResponse
 
     def slugify(text: str) -> str:
+        _pl = str.maketrans("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ", "acelnoszzACELNOSZZ")
+        text = text.translate(_pl)
         text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
         text = text.lower()
         text = re.sub(r"[^\w]+", "_", text)
