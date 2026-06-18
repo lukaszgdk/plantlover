@@ -280,28 +280,57 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     ref_image_url: str | None = None
     species_page_url: str | None = None
 
+    def _inat_search(http: httpx.Client, query: str) -> tuple[str | None, str | None]:
+        resp = http.get(
+            "https://api.inaturalist.org/v1/taxa",
+            params={"q": query, "per_page": 3},
+            headers=headers,
+        )
+        if not resp.is_success:
+            return None, None
+        for taxon in resp.json().get("results", []):
+            photo = taxon.get("default_photo") or {}
+            url = photo.get("medium_url") or photo.get("url")
+            if url:
+                page = f"https://www.inaturalist.org/taxa/{taxon['id']}"
+                return url, page
+        return None, None
+
+    def _wikimedia_search(http: httpx.Client, query: str) -> str | None:
+        resp = http.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "action": "query", "titles": query.replace(" ", "_"),
+                "prop": "pageimages", "pithumbsize": 600,
+                "format": "json", "formatversion": 2,
+            },
+            headers=headers,
+        )
+        if not resp.is_success:
+            return None
+        pages = resp.json().get("query", {}).get("pages", [])
+        for page in pages:
+            thumb = page.get("thumbnail", {})
+            if thumb.get("source"):
+                return thumb["source"]
+        return None
+
     try:
         with httpx.Client(timeout=15, follow_redirects=True) as http:
-            # iNaturalist taxa search — reliable photos, no auth needed
-            resp = http.get(
-                "https://api.inaturalist.org/v1/taxa",
-                params={"q": plant.species, "per_page": 1, "rank": "species"},
-                headers=headers,
-            )
-            resp.raise_for_status()
-            results = resp.json().get("results", [])
-            if results:
-                taxon = results[0]
-                photo = taxon.get("default_photo") or {}
-                ref_image_url = photo.get("medium_url") or photo.get("url")
-                taxon_id = taxon.get("id")
-                if taxon_id:
-                    species_page_url = f"https://www.inaturalist.org/taxa/{taxon_id}"
-    except httpx.RequestError as exc:
-        raise HTTPException(status_code=503, detail=f"iNaturalist unreachable: {exc}")
+            # 1. iNaturalist — full species name
+            ref_image_url, species_page_url = _inat_search(http, plant.species)
 
-    if not results:
-        raise HTTPException(status_code=404, detail="Species not found in iNaturalist")
+            # 2. iNaturalist — genus only (first word)
+            if not ref_image_url and " " in plant.species:
+                genus = plant.species.split()[0]
+                ref_image_url, species_page_url = _inat_search(http, genus)
+
+            # 3. Wikimedia Commons thumbnail
+            if not ref_image_url:
+                ref_image_url = _wikimedia_search(http, plant.species)
+
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=503, detail=f"Network error: {exc}")
 
     # Download reference image locally so it's always accessible
     local_ref_url = None
