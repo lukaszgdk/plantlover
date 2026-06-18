@@ -151,6 +151,13 @@ jobs:
             .venv/bin/alembic upgrade head
           '"
 
+      - name: "Generate missing thumbnails in CT 270"
+        run: |
+          ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c '
+            cd /opt/plantlover/backend
+            .venv/bin/python scripts/generate_thumbnails.py
+          '"
+
       - name: "Restart PlantLover service"
         run: |
           ssh pve2 "pct exec ${PLANTLOVER_CT} -- systemctl restart plantlover"

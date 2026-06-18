@@ -52,6 +52,7 @@ class Plant(Base):
     species: Mapped[str | None] = mapped_column(String(255))
     common_name: Mapped[str | None] = mapped_column(String(255))
     photo_url: Mapped[str | None] = mapped_column(String(1024))
+    photo_thumbnail_url: Mapped[str | None] = mapped_column(String(1024))
     user_photo_url: Mapped[str | None] = mapped_column(String(1024))
     wiki_url: Mapped[str | None] = mapped_column(String(1024))
     plant_info: Mapped[str | None] = mapped_column(Text)
