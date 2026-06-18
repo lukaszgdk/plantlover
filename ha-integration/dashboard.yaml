@@ -1,0 +1,59 @@
+title: 🌿 PlantLover
+views:
+  - title: Rośliny
+    path: plantlover
+    icon: mdi:flower
+    cards:
+
+      # ── Do podlania dziś / przeterminowane ──────────────────────────────
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: "💧 Wymagają podlania"
+          icon: mdi:water-alert
+          show_header_toggle: false
+        filter:
+          include:
+            - entity_id: "sensor.*_dni_do_podlania"
+              state: "0"
+            - entity_id: "sensor.*_dni_do_podlania"
+              state: "< 0"
+        sort:
+          method: state
+          numeric: true
+
+      # ── Przegląd wszystkich roślin ───────────────────────────────────────
+      - type: custom:auto-entities
+        card:
+          type: glance
+          title: "🌱 Wszystkie rośliny — dni do podlania"
+          show_name: true
+          show_state: true
+          show_icon: true
+        filter:
+          include:
+            - entity_id: "sensor.*_dni_do_podlania"
+        sort:
+          method: state
+          numeric: true
+
+      # ── Przyciski podlewania ─────────────────────────────────────────────
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: "🚿 Podlej"
+          show_header_toggle: false
+        filter:
+          include:
+            - entity_id: "button.*_podlej"
+        sort:
+          method: friendly_name
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Wymagania:
+#   - Integracja PlantLover zainstalowana i skonfigurowana
+#   - HACS frontend: auto-entities (https://github.com/thomasloven/lovelace-auto-entities)
+#
+# Alternatywnie pobierz spersonalizowany dashboard z dokładnymi encjami:
+#   GET http://<adres-plantlover>/api/plants/ha-dashboard
+# ──────────────────────────────────────────────────────────────────────────────
