@@ -178,18 +178,18 @@ def ha_dashboard(db: Session = Depends(get_db)):
             base = slugify(f"{prefix}{p.name}")
             name_seen[base] = name_seen.get(base, 0) + 1
             n = name_seen[base]
-            slug = base if n == 1 else f"{base}_{n}"
+            suffix = f"_{n}" if n > 1 else ""
 
             plant_cards.append(f"""\
       - type: entities
         title: "{p.name}"
         icon: mdi:flower
         entities:
-          - entity: sensor.{slug}_dni_do_podlania
+          - entity: sensor.{base}_dni_do_podlania{suffix}
             name: Dni do podlania
-          - entity: sensor.{slug}_ostatnie_podlanie
+          - entity: sensor.{base}_ostatnie_podlanie{suffix}
             name: Ostatnie podlanie
-          - entity: button.{slug}_podlej
+          - entity: button.{base}_podlej{suffix}
             name: 💧 Podlej""")
 
         cards_str = "\n\n".join(plant_cards)
