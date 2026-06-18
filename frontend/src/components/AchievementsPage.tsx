@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../api/plants";
+import { api } from "../api/plants";
 import type { Achievement } from "../types/plant";
 
 export default function AchievementsPage() {
