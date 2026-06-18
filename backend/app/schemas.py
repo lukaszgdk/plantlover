@@ -46,6 +46,7 @@ class PlantUpdate(BaseModel):
     species: str | None = None
     common_name: str | None = None
     photo_url: str | None = None
+    plant_info: str | None = None
     watering_interval_days: int | None = None
     last_watered: datetime | None = None
     next_watering: datetime | None = None

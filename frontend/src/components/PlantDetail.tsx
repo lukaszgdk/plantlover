@@ -66,11 +66,27 @@ export function PlantDetail() {
   }
 
   async function handleFetchInfo() {
-    if (!plant) return;
+    if (!plant?.species) return;
     setFetchingInfo(true);
     setCareMsg(null);
     try {
-      const updated = await api.fetchInfo(plant.id);
+      const tryFetch = async (query: string) => {
+        const r = await fetch(
+          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query.replace(/ /g, "_"))}`,
+          { headers: { "User-Agent": "PlantLover/1.0" } }
+        );
+        if (!r.ok) return null;
+        return r.json();
+      };
+      const w = (await tryFetch(plant.species)) ?? (await tryFetch(plant.species.split(" ")[0]));
+      if (!w) throw new Error("Nie znaleziono gatunku w Wikipedii");
+      const info = JSON.stringify({
+        source: "wikipedia",
+        title: w.title,
+        description: w.extract,
+        wikipedia_url: w.content_urls?.desktop?.page,
+      });
+      const updated = await api.patch(plant.id, { plant_info: info } as never);
       setPlant(updated);
       setCareMsg("✅ Informacje o roślinie pobrane!");
       setTimeout(() => setCareMsg(null), 3000);
