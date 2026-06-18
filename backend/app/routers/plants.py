@@ -308,7 +308,10 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-        # 2. Wikidata — nazwy zwyczajowe (PL, potem EN jako fallback)
+        # 2. Wikidata — nazwy zwyczajowe + sitelinks do Wikipedii (PL/EN)
+        qid = None
+        pl_wiki_title = None
+        en_wiki_title = None
         try:
             search_r = http.get("https://www.wikidata.org/w/api.php", headers=ua, params={
                 "action": "wbsearchentities", "search": species,
@@ -317,22 +320,36 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
             results = search_r.json().get("search", [])
             if results:
                 qid = results[0]["id"]
-                sparql = (
-                    f'SELECT ?name WHERE {{ wd:{qid} wdt:P1843 ?name. '
-                    f'FILTER(LANG(?name)="pl" || LANG(?name)="en") }}'
-                )
-                wq = http.get("https://query.wikidata.org/sparql",
-                              params={"query": sparql}, headers={**ua, "Accept": "application/json"})
-                bindings = wq.json()["results"]["bindings"]
-                pl_names = [b["name"]["value"] for b in bindings if b["name"]["xml:lang"] == "pl"]
-                en_names = [b["name"]["value"] for b in bindings if b["name"]["xml:lang"] == "en"]
+                # pobierz nazwy zwyczajowe + sitelinks jednym zapytaniem
+                ent_r = http.get("https://www.wikidata.org/w/api.php", headers=ua, params={
+                    "action": "wbgetentities", "ids": qid,
+                    "props": "claims|sitelinks",
+                    "sitefilter": "plwiki|enwiki",
+                    "format": "json",
+                })
+                ent = ent_r.json()["entities"][qid]
+                sitelinks = ent.get("sitelinks", {})
+                pl_wiki_title = sitelinks.get("plwiki", {}).get("title")
+                en_wiki_title = sitelinks.get("enwiki", {}).get("title")
+
+                # nazwy zwyczajowe z P1843
+                p1843 = ent.get("claims", {}).get("P1843", [])
+                pl_names, en_names = [], []
+                for claim in p1843:
+                    sv = claim.get("mainsnak", {}).get("datavalue", {}).get("value", {})
+                    if isinstance(sv, dict):
+                        lang, text = sv.get("language", ""), sv.get("text", "")
+                        if lang == "pl":
+                            pl_names.append(text)
+                        elif lang == "en":
+                            en_names.append(text)
                 names = pl_names or en_names
                 if names:
                     info["common_names"] = names
         except Exception:
             pass
 
-        # 3. Wikipedia PL → EN fallback — pełny artykuł przez MediaWiki API
+        # 3. Wikipedia PL → EN — pełny artykuł przez MediaWiki API
         def _wiki_fetch(lang: str, title: str) -> dict | None:
             r = http.get(f"https://{lang}.wikipedia.org/w/api.php", headers=ua, params={
                 "action": "query", "titles": title,
@@ -346,28 +363,35 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
             return page
 
         try:
-            slug = species.replace(" ", "_")
-            page = _wiki_fetch("pl", slug)
+            import re
+            page, lang_used = None, "pl"
+            if pl_wiki_title:
+                page = _wiki_fetch("pl", pl_wiki_title)
+            if not page and en_wiki_title:
+                page, lang_used = _wiki_fetch("en", en_wiki_title), "en"
             if not page:
-                page = _wiki_fetch("en", slug)
+                page = _wiki_fetch("pl", species.replace(" ", "_"))
             if not page:
-                page = _wiki_fetch("pl", species.split()[0])
+                page, lang_used = _wiki_fetch("en", species.replace(" ", "_")), "en"
+
             if page:
                 full_text = page.get("extract", "")
-                # Rozbij na sekcje (oddzielone podwójnym \n\n + nagłówek)
-                import re
-                parts = re.split(r'\n{2,}(?=[A-ZŁŚŹŻĆÓĄĘ][^\n]{2,}\n)', full_text)
-                intro = parts[0].strip() if parts else full_text[:600]
+                # sekcje oddzielone \n\nTytuł\n
+                parts = re.split(r'\n{2,}([^\n]+)\n', full_text)
+                intro = parts[0].strip()
                 sections = []
-                for part in parts[1:]:
-                    lines = part.strip().split("\n", 1)
-                    if len(lines) == 2:
-                        sections.append({"title": lines[0].strip(), "text": lines[1].strip()})
+                i = 1
+                while i + 1 < len(parts):
+                    title_s, body = parts[i].strip(), parts[i + 1].strip()
+                    if title_s and body:
+                        sections.append({"title": title_s, "text": body})
+                    i += 2
+
                 info["description"] = intro
                 if sections:
                     info["sections"] = sections
                 info["wikipedia_url"] = page.get("fullurl")
-                if "pl.wikipedia" in (page.get("fullurl") or ""):
+                if lang_used == "pl":
                     info["polish_name"] = page.get("title")
         except Exception:
             pass
