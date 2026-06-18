@@ -112,6 +112,7 @@ def list_plants(db: Session = Depends(get_db)):
 @router.get("/ha-dashboard")
 def ha_dashboard(db: Session = Depends(get_db)):
     import unicodedata, re
+    from collections import defaultdict
     from fastapi.responses import PlainTextResponse
 
     def slugify(text: str) -> str:
@@ -122,38 +123,14 @@ def ha_dashboard(db: Session = Depends(get_db)):
 
     plants = db.query(PlantModel).order_by(PlantModel.name).all()
 
-    # zlicz duplikaty nazw żeby obsłużyć _2, _3 itd.
-    from collections import Counter
-    name_counts: Counter = Counter()
-
-    plant_cards = []
+    # Grupuj po pokojach; rośliny bez pokoju trafiają do None
+    by_room: dict = defaultdict(list)
     for p in plants:
-        room_name = p.room.name if p.room else None
-        full_name = f"{room_name} {p.name}" if room_name else p.name
-        base_slug = slugify(full_name)
+        by_room[p.room].append(p)
 
-        name_counts[base_slug] += 1
-        n = name_counts[base_slug]
-        slug = base_slug if n == 1 else f"{base_slug}_{n}"
-
-        title = f"{room_name} / {p.name}" if room_name else p.name
-        card = f"""\
-      - type: entities
-        title: "{title}"
-        icon: mdi:flower
-        entities:
-          - entity: sensor.{slug}_dni_do_podlania
-            name: Dni do podlania
-          - entity: sensor.{slug}_ostatnie_podlanie
-            name: Ostatnie podlanie
-          - entity: button.{slug}_podlej
-            name: 💧 Podlej"""
-        plant_cards.append(card)
-
-    yaml = f"""\
-title: 🌿 PlantLover
-views:
-  - title: Rośliny
+    # Widok główny: do podlania + przegląd
+    main_view = """\
+  - title: Przegląd
     path: plantlover
     icon: mdi:flower
     cards:
@@ -169,7 +146,9 @@ views:
             - entity_id: "sensor.*_dni_do_podlania"
               state: "0"
             - entity_id: "sensor.*_dni_do_podlania"
-              state: "< 0"
+              state_filter:
+                - operator: "<"
+                  value: 0
         sort:
           method: state
           numeric: true
@@ -186,10 +165,71 @@ views:
             - entity_id: "sensor.*_dni_do_podlania"
         sort:
           method: state
+          numeric: true"""
+
+    # Widoki per pokój
+    room_views = []
+    for room, room_plants in sorted(by_room.items(), key=lambda kv: kv[0].name if kv[0] else ""):
+        room_name = room.name if room else "Bez pokoju"
+        room_slug = slugify(room_name)
+        room_button_slug = f"room_{room_slug}_water_all"
+
+        # Licznik duplikatów w obrębie pokoju
+        name_seen: dict = {}
+        plant_cards = []
+        for p in room_plants:
+            base = slugify(p.name)
+            name_seen[base] = name_seen.get(base, 0) + 1
+            n = name_seen[base]
+            slug = base if n == 1 else f"{base}_{n}"
+
+            plant_cards.append(f"""\
+      - type: entities
+        title: "{p.name}"
+        icon: mdi:flower
+        entities:
+          - entity: sensor.{slug}_dni_do_podlania
+            name: Dni do podlania
+          - entity: sensor.{slug}_ostatnie_podlanie
+            name: Ostatnie podlanie
+          - entity: button.{slug}_podlej
+            name: 💧 Podlej""")
+
+        cards_str = "\n\n".join(plant_cards)
+        room_views.append(f"""\
+  - title: "{room_name}"
+    path: {room_slug}
+    icon: mdi:home-floor-1
+    cards:
+
+      - type: custom:auto-entities
+        card:
+          type: glance
+          title: "🌱 {room_name} — dni do podlania"
+          show_name: true
+          show_state: true
+          show_icon: true
+        filter:
+          include:
+            - entity_id: "sensor.*_dni_do_podlania"
+              area: "{room_name}"
+        sort:
+          method: state
           numeric: true
 
-{"".join(chr(10) + c for c in plant_cards)}
-"""
+      - type: button
+        name: "💧 Podlej wszystkie w {room_name}"
+        icon: mdi:watering-can
+        tap_action:
+          action: call-service
+          service: button.press
+          target:
+            entity_id: button.{room_button_slug}
+
+{cards_str}""")
+
+    views = "\n\n".join([main_view] + room_views)
+    yaml = f"title: 🌿 PlantLover\nviews:\n{views}\n"
     return PlainTextResponse(yaml, media_type="text/yaml")
 
 
