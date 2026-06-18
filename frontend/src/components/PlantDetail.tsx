@@ -180,6 +180,9 @@ export function PlantDetail() {
           <div className="plant-info-header">
             <div>
               <h3>{plant.species}</h3>
+              {info.polish_name && (
+                <p className="plant-info-polish-name">{info.polish_name}</p>
+              )}
               {info.common_names?.length > 0 && (
                 <p className="plant-info-common-names">{info.common_names.join(" · ")}</p>
               )}

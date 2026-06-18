@@ -308,7 +308,7 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-        # 2. Wikidata — nazwy zwyczajowe po angielsku (bez klucza)
+        # 2. Wikidata — nazwy zwyczajowe (PL, potem EN jako fallback)
         try:
             search_r = http.get("https://www.wikidata.org/w/api.php", headers=ua, params={
                 "action": "wbsearchentities", "search": species,
@@ -317,26 +317,40 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
             results = search_r.json().get("search", [])
             if results:
                 qid = results[0]["id"]
-                sparql = f'SELECT ?name WHERE {{ wd:{qid} wdt:P1843 ?name. FILTER(LANG(?name)="en") }}'
+                sparql = (
+                    f'SELECT ?name WHERE {{ wd:{qid} wdt:P1843 ?name. '
+                    f'FILTER(LANG(?name)="pl" || LANG(?name)="en") }}'
+                )
                 wq = http.get("https://query.wikidata.org/sparql",
                               params={"query": sparql}, headers={**ua, "Accept": "application/json"})
-                names = [b["name"]["value"] for b in wq.json()["results"]["bindings"]]
+                bindings = wq.json()["results"]["bindings"]
+                pl_names = [b["name"]["value"] for b in bindings if b["name"]["xml:lang"] == "pl"]
+                en_names = [b["name"]["value"] for b in bindings if b["name"]["xml:lang"] == "en"]
+                names = pl_names or en_names
                 if names:
                     info["common_names"] = names
         except Exception:
             pass
 
-        # 3. Wikipedia — opis tekstowy (bez klucza)
+        # 3. Wikipedia PL → EN fallback — opis tekstowy
         try:
             slug = urllib.parse.quote(species.replace(" ", "_"))
-            wp = http.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{slug}", headers=ua)
-            if wp.status_code == 404:
-                slug = urllib.parse.quote(species.split()[0])
-                wp = http.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{slug}", headers=ua)
-            if wp.status_code == 200:
-                w = wp.json()
-                info["description"] = w.get("extract")
-                info["wikipedia_url"] = w.get("content_urls", {}).get("desktop", {}).get("page")
+            for lang in ("pl", "en"):
+                wp = http.get(
+                    f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{slug}", headers=ua
+                )
+                if wp.status_code == 404 and lang == "pl":
+                    # spróbuj samym rodzajem
+                    slug2 = urllib.parse.quote(species.split()[0])
+                    wp = http.get(
+                        f"https://pl.wikipedia.org/api/rest_v1/page/summary/{slug2}", headers=ua
+                    )
+                if wp.status_code == 200:
+                    w = wp.json()
+                    info["description"] = w.get("extract")
+                    info["wikipedia_url"] = w.get("content_urls", {}).get("desktop", {}).get("page")
+                    info["polish_name"] = w.get("title") if lang == "pl" else None
+                    break
         except Exception:
             pass
 

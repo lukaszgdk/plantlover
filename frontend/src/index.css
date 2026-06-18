@@ -491,7 +491,8 @@ dd { font-size: 0.95rem; }
   display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem;
 }
 .plant-info-header h3 { margin: 0; font-size: 1.05rem; font-style: italic; color: var(--text); }
-.plant-info-common-names { margin: 0.2rem 0 0; font-size: 0.88rem; color: var(--text-muted); font-style: normal; }
+.plant-info-polish-name { margin: 0.2rem 0 0; font-size: 1rem; color: var(--text); font-weight: 600; font-style: normal; }
+.plant-info-common-names { margin: 0.15rem 0 0; font-size: 0.82rem; color: var(--text-muted); font-style: normal; }
 
 .plant-info-taxonomy {
   display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem;
