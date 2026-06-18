@@ -122,12 +122,24 @@ def ha_dashboard(db: Session = Depends(get_db)):
 
     plants = db.query(PlantModel).order_by(PlantModel.name).all()
 
+    # zlicz duplikaty nazw żeby obsłużyć _2, _3 itd.
+    from collections import Counter
+    name_counts: Counter = Counter()
+
     plant_cards = []
     for p in plants:
-        slug = slugify(p.name)
+        room_name = p.room.name if p.room else None
+        full_name = f"{room_name} {p.name}" if room_name else p.name
+        base_slug = slugify(full_name)
+
+        name_counts[base_slug] += 1
+        n = name_counts[base_slug]
+        slug = base_slug if n == 1 else f"{base_slug}_{n}"
+
+        title = f"{room_name} / {p.name}" if room_name else p.name
         card = f"""\
       - type: entities
-        title: "{p.name}"
+        title: "{title}"
         icon: mdi:flower
         entities:
           - entity: sensor.{slug}_dni_do_podlania
