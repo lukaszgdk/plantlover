@@ -41,7 +41,7 @@ class UploadsCacheMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         if request.url.path.startswith("/uploads/"):
-            response.headers["Cache-Control"] = "public, max-age=86400, immutable"
+            response.headers["Cache-Control"] = "public, max-age=86400"
         return response
 
 app.add_middleware(UploadsCacheMiddleware)
