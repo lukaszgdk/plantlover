@@ -23,6 +23,17 @@ def create_room(payload: RoomCreate, db: Session = Depends(get_db)):
     return room
 
 
+@router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_room(room_id: uuid.UUID, db: Session = Depends(get_db)):
+    room = db.get(RoomModel, room_id)
+    if not room:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+    if db.query(PlantModel).filter(PlantModel.room_id == room_id).first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room has plants assigned")
+    db.delete(room)
+    db.commit()
+
+
 @router.get("/{room_id}/plants", response_model=list[Plant])
 def list_plants_in_room(room_id: uuid.UUID, db: Session = Depends(get_db)):
     room = db.get(RoomModel, room_id)

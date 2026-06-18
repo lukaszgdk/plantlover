@@ -40,6 +40,21 @@ export interface IdentifyResult {
   species: string;
   common_name: string | null;
   score: number;
+  reference_image_url: string | null;
+  gbif_id: string | null;
+}
+
+export interface SpeciesCare {
+  watering_days: number | null;
+  sunlight: string | null;
+  source: "database" | "not_found";
+}
+
+export interface AppConfig {
+  setup_completed: boolean;
+  plantnet_api_key_set: boolean;
+  discord_bot_token_set: boolean;
+  discord_channel_id: string | null;
 }
 
 export interface IdentifyResponse {

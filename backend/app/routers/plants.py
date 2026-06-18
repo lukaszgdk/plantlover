@@ -18,8 +18,10 @@ from ..schemas import (
     IdentifyResult,
     Plant,
     PlantUpdate,
+    SpeciesCare,
     WaterResponse,
 )
+from ..species_care import lookup as lookup_care
 
 router = APIRouter(prefix="/plants", tags=["plants"])
 
@@ -42,7 +44,9 @@ def _save_upload(file: UploadFile, content: bytes) -> str:
 
 
 def _call_plantnet(image_bytes: list[bytes], filenames: list[str]) -> dict:
-    api_key = os.environ["PLANTNET_API_KEY"]
+    api_key = os.environ.get("PLANTNET_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="PlantNet API key not configured. Go to Settings to add it.")
     files = [("images", (fn, data, "image/jpeg")) for data, fn in zip(image_bytes, filenames)]
     with httpx.Client(timeout=30.0) as client:
         resp = client.post(
@@ -55,14 +59,28 @@ def _call_plantnet(image_bytes: list[bytes], filenames: list[str]) -> dict:
 
 
 def _parse_results(data: dict) -> list[IdentifyResult]:
-    return [
-        IdentifyResult(
+    results = []
+    for r in data.get("results", []):
+        images = r.get("images", [])
+        ref_image = images[0]["url"].get("m") if images else None
+        gbif = r["species"].get("gbif", {})
+        results.append(IdentifyResult(
             species=r["species"]["scientificNameWithoutAuthor"],
             common_name=((r["species"].get("commonNames") or [None])[0]),
             score=r["score"],
-        )
-        for r in data.get("results", [])
-    ]
+            reference_image_url=ref_image,
+            gbif_id=str(gbif["id"]) if gbif.get("id") else None,
+        ))
+    return results
+
+
+# ── GET /plants/species-care ──────────────────────────────────────────────────
+@router.get("/species-care", response_model=SpeciesCare)
+def get_species_care(species: str):
+    care = lookup_care(species)
+    if care:
+        return SpeciesCare(watering_days=care["watering_days"], sunlight=care["sunlight"], source="database")
+    return SpeciesCare(watering_days=None, sunlight=None, source="not_found")
 
 
 # ── POST /plants/identify-new ─────────────────────────────────────────────────

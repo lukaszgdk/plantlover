@@ -19,6 +19,8 @@ export function AddPlantForm() {
   const [step, setStep] = useState<Step>("capture");
   const [result, setResult] = useState<IdentifyNewResponse | null>(null);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | null>(null);
+  const [useReferenceImage, setUseReferenceImage] = useState(false);
 
   // Form fields
   const [name, setName] = useState("");
@@ -64,6 +66,19 @@ export function AddPlantForm() {
       setSpecies(res.top.species);
       setCommonName(res.top.common_name ?? "");
       setName(res.top.common_name || res.top.species);
+
+      // Set reference image from PlantNet as default photo
+      if (res.top.reference_image_url) {
+        setReferenceImageUrl(res.top.reference_image_url);
+        setUseReferenceImage(true);
+      }
+
+      // Auto-fill care data from species database
+      api.getSpeciesCare(res.top.species).then((care) => {
+        if (care.watering_days) setWateringDays(care.watering_days);
+        if (care.sunlight) setSunlight(care.sunlight as SunlightLevel);
+      }).catch(() => {});
+
       setStep("result");
     } catch (e) {
       setCaptureError((e as Error).message);
@@ -76,6 +91,8 @@ export function AddPlantForm() {
     setImages([]);
     setPreviews([]);
     setResult(null);
+    setReferenceImageUrl(null);
+    setUseReferenceImage(false);
     setStep("capture");
     setCaptureError(null);
     if (inputRef.current) inputRef.current.value = "";
@@ -87,6 +104,14 @@ export function AddPlantForm() {
     setSpecies(alt.species);
     setCommonName(alt.common_name ?? "");
     setName(alt.common_name || alt.species);
+    if (alt.reference_image_url) {
+      setReferenceImageUrl(alt.reference_image_url);
+      setUseReferenceImage(true);
+    }
+    api.getSpeciesCare(alt.species).then((care) => {
+      if (care.watering_days) setWateringDays(care.watering_days);
+      if (care.sunlight) setSunlight(care.sunlight as SunlightLevel);
+    }).catch(() => {});
     setShowAlternatives(false);
   }
 
@@ -107,8 +132,10 @@ export function AddPlantForm() {
           sunlight: sunlight || undefined,
           notes: notes || undefined,
           room_id: roomId || undefined,
+          // Use reference image URL if user opted to use it instead of own photo
+          photo_url: useReferenceImage && !images[0] ? (referenceImageUrl ?? undefined) : undefined,
         },
-        images[0],
+        useReferenceImage && !images[0] ? undefined : images[0],
       );
       navigate(`/plants/${plant.id}`);
     } catch (e) {
@@ -191,9 +218,22 @@ export function AddPlantForm() {
 
       {result && (
         <div className="identify-result-card">
-          {previews[0] && (
-            <img src={previews[0]} alt="Plant photo" className="identify-result-photo" />
-          )}
+          <div className="identify-photos">
+            {previews[0] && (
+              <div className={`identify-photo-option ${!useReferenceImage ? "selected" : ""}`}
+                onClick={() => setUseReferenceImage(false)}>
+                <img src={previews[0]} alt="Twoje zdjęcie" className="identify-result-photo" />
+                <span className="photo-label">Twoje zdjęcie</span>
+              </div>
+            )}
+            {referenceImageUrl && (
+              <div className={`identify-photo-option ${useReferenceImage ? "selected" : ""}`}
+                onClick={() => setUseReferenceImage(true)}>
+                <img src={referenceImageUrl} alt="Zdjęcie referencyjne" className="identify-result-photo" />
+                <span className="photo-label">📷 PlantNet</span>
+              </div>
+            )}
+          </div>
           <div className="identify-result-info">
             <p className="identify-species">{result.top.species}</p>
             {result.top.common_name && (

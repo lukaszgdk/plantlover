@@ -8,10 +8,14 @@ from fastapi.staticfiles import StaticFiles
 
 from .routers import plants, rooms
 from .routers import schedule as schedule_router
+from .routers import config as config_router
+from .routers.config import load_config_into_env
 
-_missing = [v for v in ("DATABASE_URL", "PLANTNET_API_KEY") if not os.environ.get(v)]
-if _missing:
-    raise RuntimeError(f"Missing required environment variables: {', '.join(_missing)}")
+if not os.environ.get("DATABASE_URL"):
+    raise RuntimeError("Missing required environment variable: DATABASE_URL")
+
+# Load stored config (plantnet key, discord credentials) into env at startup
+load_config_into_env()
 
 app = FastAPI(title="PlantLover API", version="0.3.0")
 
@@ -26,6 +30,7 @@ app.add_middleware(
 app.include_router(plants.router, prefix="/api")
 app.include_router(rooms.router, prefix="/api")
 app.include_router(schedule_router.router, prefix="/api")
+app.include_router(config_router.router, prefix="/api")
 
 # Serve uploaded plant photos
 _uploads_dir = Path(__file__).parent.parent / "uploads"

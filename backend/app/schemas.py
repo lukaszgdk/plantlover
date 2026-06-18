@@ -66,6 +66,8 @@ class IdentifyResult(BaseModel):
     species: str
     common_name: str | None
     score: float
+    reference_image_url: str | None = None
+    gbif_id: str | None = None
 
 
 class IdentifyResponse(BaseModel):
@@ -78,6 +80,29 @@ class IdentifyResponse(BaseModel):
 class IdentifyNewResponse(BaseModel):
     top: IdentifyResult
     alternatives: list[IdentifyResult]
+
+
+# ── Species care ──────────────────────────────────────────────────────────────
+class SpeciesCare(BaseModel):
+    watering_days: int | None
+    sunlight: str | None
+    source: str  # "database" | "not_found"
+
+
+# ── App config ────────────────────────────────────────────────────────────────
+class AppConfig(BaseModel):
+    setup_completed: bool = False
+    plantnet_api_key: str | None = None
+    discord_bot_token: str | None = None
+    discord_channel_id: str | None = None
+
+
+class AppConfigPublic(BaseModel):
+    """Config without sensitive values (masked)."""
+    setup_completed: bool
+    plantnet_api_key_set: bool
+    discord_bot_token_set: bool
+    discord_channel_id: str | None
 
 
 # ── Watering ──────────────────────────────────────────────────────────────────

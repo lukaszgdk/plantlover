@@ -342,3 +342,109 @@ dd { font-size: 0.95rem; }
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.4; transform: scale(0.7); }
 }
+
+/* ── Setup Wizard ─────────────────────────────────────────────────────────── */
+.setup-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg);
+}
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 520px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.setup-logo { font-size: 3rem; text-align: center; }
+.setup-card h1, .setup-card h2 { margin: 0; text-align: center; }
+.setup-subtitle { color: var(--text-muted); text-align: center; margin: 0; line-height: 1.5; }
+.setup-step-indicator { text-align: center; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.setup-steps-preview {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted);
+  flex-wrap: wrap;
+}
+.setup-next { align-self: center; padding: 0.75rem 2rem; font-size: 1rem; }
+.setup-nav { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 0.5rem; }
+.setup-nav .btn { flex: 1; }
+.setup-optional { font-size: 0.8rem; color: var(--text-muted); text-align: center; margin: 0; }
+.setup-skip { font-size: 0.75rem; opacity: 0.7; }
+
+.setup-icon-picker {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+}
+.icon-btn {
+  width: 2.5rem; height: 2.5rem; border-radius: 8px; border: 2px solid transparent;
+  background: var(--bg); font-size: 1.2rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s;
+}
+.icon-btn.selected { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.icon-btn:hover { border-color: var(--border-hover, #aaa); }
+
+.setup-room-input-row {
+  display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;
+}
+.setup-room-input-row input { flex: 1; }
+.setup-selected-icon { font-size: 1.4rem; flex-shrink: 0; }
+
+.setup-room-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.setup-room-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.5rem 0.75rem; font-size: 0.95rem;
+}
+.btn-icon-delete {
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 1.2rem; line-height: 1; padding: 0 0.25rem;
+  transition: color 0.15s;
+}
+.btn-icon-delete:hover { color: #e03131; }
+
+.setup-input-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.setup-input-group label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; }
+.setup-saved-badge {
+  background: color-mix(in srgb, #2f9e44 15%, transparent);
+  border: 1px solid #2f9e44; border-radius: 8px;
+  padding: 0.75rem 1rem; text-align: center; font-weight: 500; color: #2f9e44;
+}
+
+.setup-done { align-items: center; }
+.setup-summary { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; }
+.setup-summary-item {
+  padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.95rem;
+  background: var(--bg); border: 1px solid var(--border);
+}
+.setup-summary-item.ok { border-color: #2f9e44; }
+.setup-summary-item.skip { opacity: 0.6; }
+
+/* ── Settings page ────────────────────────────────────────────────────────── */
+.settings-page { max-width: 600px; margin: 0 auto; padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 1.5rem; }
+.settings-page h1 { margin: 0; }
+.settings-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;
+}
+.settings-section h2 { margin: 0; font-size: 1rem; }
+.settings-status { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+
+/* ── PlantNet reference photo picker ─────────────────────────────────────── */
+.identify-photos {
+  display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;
+}
+.identify-photo-option {
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+  cursor: pointer; border-radius: 10px; padding: 0.3rem;
+  border: 2px solid transparent; transition: border-color 0.15s;
+}
+.identify-photo-option.selected { border-color: var(--primary); }
+.identify-photo-option .identify-result-photo { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; }
+.photo-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }

@@ -1,4 +1,5 @@
 import type {
+  AppConfig,
   CareLogEntry,
   IdentifyNewResponse,
   IdentifyResponse,
@@ -6,6 +7,7 @@ import type {
   PlantUpdate,
   Room,
   ScheduledPlant,
+  SpeciesCare,
   SunlightLevel,
   WaterResponse,
 } from "../types/plant";
@@ -92,9 +94,28 @@ export const api = {
   getSchedule: (dueToday = false) =>
     request<ScheduledPlant[]>(`/api/schedule${dueToday ? "?due_today=true" : ""}`),
 
+  getSpeciesCare: (species: string) =>
+    request<SpeciesCare>(`/api/plants/species-care?species=${encodeURIComponent(species)}`),
+
   // ── Rooms ─────────────────────────────────────────────────────────────────
   listRooms: () => request<Room[]>("/api/rooms"),
 
   createRoom: (data: { name: string; icon?: string }) =>
     json<Room>("/api/rooms", "POST", data),
+
+  deleteRoom: (id: string) => request<void>(`/api/rooms/${id}`, { method: "DELETE" }),
+
+  // ── Config / Setup ────────────────────────────────────────────────────────
+  getSetupStatus: () => request<{ completed: boolean }>("/api/config/status"),
+
+  getConfig: () => request<AppConfig>("/api/config"),
+
+  saveConfig: (data: Partial<{
+    plantnet_api_key: string;
+    discord_bot_token: string;
+    discord_channel_id: string;
+    setup_completed: boolean;
+  }>) => json<{ ok: boolean }>("/api/config", "PUT", data),
+
+  completeSetup: () => request<{ ok: boolean }>("/api/config/complete-setup", { method: "POST" }),
 };
