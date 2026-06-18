@@ -30,6 +30,8 @@ export function SetupWizard() {
   const [discordSaved, setDiscordSaved] = useState(false);
   const [discordError, setDiscordError] = useState<string | null>(null);
   const [discordSaving, setDiscordSaving] = useState(false);
+  const [reminderTimes, setReminderTimes] = useState<string[]>(["08:00", "15:00", "20:00"]);
+  const [newTime, setNewTime] = useState("09:00");
 
   useEffect(() => {
     api.listRooms().then(setRooms).catch(() => {});
@@ -37,6 +39,7 @@ export function SetupWizard() {
       setPlantnetSaved(cfg.plantnet_api_key_set);
       setDiscordSaved(cfg.discord_bot_token_set);
       if (cfg.discord_channel_id) setDiscordChannel(cfg.discord_channel_id);
+      if (cfg.reminder_times?.length) setReminderTimes(cfg.reminder_times);
     }).catch(() => {});
   }, []);
 
@@ -87,6 +90,7 @@ export function SetupWizard() {
       await api.saveConfig({
         discord_bot_token: discordToken.trim() || undefined,
         discord_channel_id: discordChannel.trim() || undefined,
+        reminder_times: reminderTimes,
       } as Parameters<typeof api.saveConfig>[0]);
       setDiscordSaved(true);
       setDiscordToken("");
@@ -95,6 +99,17 @@ export function SetupWizard() {
     } finally {
       setDiscordSaving(false);
     }
+  }
+
+  function addReminderTime() {
+    if (!newTime || reminderTimes.includes(newTime)) return;
+    const sorted = [...reminderTimes, newTime].sort();
+    setReminderTimes(sorted);
+  }
+
+  function removeReminderTime(t: string) {
+    if (reminderTimes.length <= 1) return;
+    setReminderTimes(reminderTimes.filter((x) => x !== t));
   }
 
   async function finish() {
@@ -275,6 +290,25 @@ export function SetupWizard() {
               {discordError && <p className="status error">{discordError}</p>}
             </div>
           )}
+
+          <div className="setup-reminder-times">
+            <h3>🕐 Godziny przypomnień</h3>
+            <p className="setup-subtitle" style={{ marginBottom: "0.5rem" }}>
+              Bot sprawdzi rośliny do podlania o tych godzinach.
+            </p>
+            <div className="reminder-times-list">
+              {reminderTimes.map((t) => (
+                <span key={t} className="reminder-time-chip">
+                  {t}
+                  <button onClick={() => removeReminderTime(t)} disabled={reminderTimes.length <= 1}>×</button>
+                </span>
+              ))}
+            </div>
+            <div className="reminder-time-add">
+              <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
+              <button className="btn btn-secondary" onClick={addReminderTime}>+ Dodaj</button>
+            </div>
+          </div>
 
           <p className="setup-optional">Możesz to skonfigurować później w ustawieniach.</p>
 

@@ -59,6 +59,7 @@ def get_config():
         plantnet_api_key_set=bool(cfg.plantnet_api_key or os.environ.get("PLANTNET_API_KEY")),
         discord_bot_token_set=bool(cfg.discord_bot_token or os.environ.get("DISCORD_BOT_TOKEN")),
         discord_channel_id=cfg.discord_channel_id or os.environ.get("DISCORD_CHANNEL_ID"),
+        reminder_times=cfg.reminder_times,
     )
 
 
@@ -73,6 +74,8 @@ def save_config(payload: AppConfig):
         cfg.discord_bot_token = payload.discord_bot_token or None
     if payload.discord_channel_id is not None:
         cfg.discord_channel_id = payload.discord_channel_id or None
+    if payload.reminder_times:
+        cfg.reminder_times = payload.reminder_times
     if payload.setup_completed:
         cfg.setup_completed = True
 

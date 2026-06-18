@@ -448,3 +448,22 @@ dd { font-size: 0.95rem; }
 .identify-photo-option.selected { border-color: var(--primary); }
 .identify-photo-option .identify-result-photo { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; }
 .photo-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+
+.setup-reminder-times { margin-top: 1.25rem; }
+.setup-reminder-times h3 { font-size: 0.95rem; margin-bottom: 0.4rem; }
+.reminder-times-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem; }
+.reminder-time-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  background: var(--surface-alt, #f0f4f0); border: 1px solid var(--border);
+  border-radius: 999px; padding: 0.2rem 0.6rem; font-size: 0.9rem; font-weight: 500;
+}
+.reminder-time-chip button {
+  background: none; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 1rem; line-height: 1; padding: 0 0.1rem;
+}
+.reminder-time-chip button:disabled { opacity: 0.3; cursor: not-allowed; }
+.reminder-time-add { display: flex; gap: 0.5rem; align-items: center; }
+.reminder-time-add input[type="time"] {
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.4rem 0.6rem; font-size: 0.9rem; background: var(--surface);
+}

@@ -14,6 +14,8 @@ export function SettingsPage() {
   const [discordToken, setDiscordToken] = useState("");
   const [discordChannel, setDiscordChannel] = useState("");
   const [discordMsg, setDiscordMsg] = useState<string | null>(null);
+  const [reminderTimes, setReminderTimes] = useState<string[]>(["08:00", "15:00", "20:00"]);
+  const [newTime, setNewTime] = useState("09:00");
 
   const [roomName, setRoomName] = useState("");
   const [roomIcon, setRoomIcon] = useState("🌿");
@@ -23,6 +25,7 @@ export function SettingsPage() {
     api.getConfig().then((cfg) => {
       setConfig(cfg);
       if (cfg.discord_channel_id) setDiscordChannel(cfg.discord_channel_id);
+      if (cfg.reminder_times?.length) setReminderTimes(cfg.reminder_times);
     });
     api.listRooms().then(setRooms);
   }, []);
@@ -44,6 +47,7 @@ export function SettingsPage() {
       await api.saveConfig({
         discord_bot_token: discordToken.trim() || undefined,
         discord_channel_id: discordChannel.trim() || undefined,
+        reminder_times: reminderTimes,
       } as Parameters<typeof api.saveConfig>[0]);
       setDiscordMsg("✅ Zapisano. Bot zostanie zrestartowany.");
       setDiscordToken("");
@@ -51,6 +55,16 @@ export function SettingsPage() {
     } catch {
       setDiscordMsg("❌ Błąd zapisu");
     }
+  }
+
+  function addReminderTime() {
+    if (!newTime || reminderTimes.includes(newTime)) return;
+    setReminderTimes([...reminderTimes, newTime].sort());
+  }
+
+  function removeReminderTime(t: string) {
+    if (reminderTimes.length <= 1) return;
+    setReminderTimes(reminderTimes.filter((x) => x !== t));
   }
 
   async function addRoom() {
@@ -140,8 +154,23 @@ export function SettingsPage() {
               onChange={(e) => setDiscordChannel(e.target.value)}
               placeholder="np. 1516900842588995704" />
           </label>
-          <button className="btn btn-primary" onClick={saveDiscord}>Zapisz</button>
         </div>
+        <div className="setup-reminder-times">
+          <h3>🕐 Godziny przypomnień</h3>
+          <div className="reminder-times-list">
+            {reminderTimes.map((t) => (
+              <span key={t} className="reminder-time-chip">
+                {t}
+                <button onClick={() => removeReminderTime(t)} disabled={reminderTimes.length <= 1}>×</button>
+              </span>
+            ))}
+          </div>
+          <div className="reminder-time-add">
+            <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} />
+            <button className="btn btn-secondary" onClick={addReminderTime}>+ Dodaj</button>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={saveDiscord} style={{ marginTop: "0.75rem" }}>Zapisz</button>
         {discordMsg && <p className="status">{discordMsg}</p>}
       </section>
     </div>

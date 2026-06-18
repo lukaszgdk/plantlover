@@ -116,6 +116,7 @@ export const api = {
     plantnet_api_key: string;
     discord_bot_token: string;
     discord_channel_id: string;
+    reminder_times: string[];
     setup_completed: boolean;
   }>) => json<{ ok: boolean }>("/api/config", "PUT", data),
 
