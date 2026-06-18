@@ -277,11 +277,30 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Plant has no species set")
 
     headers = {"User-Agent": "PlantLover/1.0 (plant care app)"}
+    perenual_key = os.environ.get("PERENUAL_API_KEY")
     ref_image_url: str | None = None
     species_page_url: str | None = None
 
+    def _perenual(http: httpx.Client, query: str) -> tuple[str | None, str | None]:
+        if not perenual_key:
+            return None, None
+        resp = http.get(
+            "https://perenual.com/api/species-list",
+            params={"key": perenual_key, "q": query},
+            headers=headers,
+        )
+        if not resp.is_success:
+            return None, None
+        data = resp.json().get("data", [])
+        if not data:
+            return None, None
+        img = data[0].get("default_image") or {}
+        image_url = img.get("regular_url") or img.get("medium_url") or img.get("thumbnail")
+        species_id = data[0].get("id")
+        page_url = f"https://perenual.com/plant/{species_id}" if species_id else None
+        return image_url, page_url
+
     def _wikipedia_thumb(http: httpx.Client, query: str) -> tuple[str | None, str | None]:
-        """Try Wikipedia page thumbnail first — fast, good quality."""
         resp = http.get(
             "https://en.wikipedia.org/w/api.php",
             params={
@@ -302,68 +321,34 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
                 return image_url, page_url
         return None, None
 
-    def _commons_search(http: httpx.Client, query: str) -> str | None:
-        """Search Wikimedia Commons for image files directly."""
-        search_resp = http.get(
-            "https://commons.wikimedia.org/w/api.php",
-            params={
-                "action": "query", "list": "search",
-                "srsearch": query, "srnamespace": 6,
-                "srlimit": 5, "format": "json",
-            },
-            headers=headers,
-        )
-        if not search_resp.is_success:
-            return None
-        hits = search_resp.json().get("query", {}).get("search", [])
-        titles = [h["title"] for h in hits if h.get("title")]
-        if not titles:
-            return None
-        info_resp = http.get(
-            "https://commons.wikimedia.org/w/api.php",
-            params={
-                "action": "query",
-                "titles": "|".join(titles[:3]),
-                "prop": "imageinfo",
-                "iiprop": "url|mediatype",
-                "iiurlwidth": 800,
-                "format": "json",
-            },
-            headers=headers,
-        )
-        if not info_resp.is_success:
-            return None
-        for page in info_resp.json().get("query", {}).get("pages", {}).values():
-            for info in page.get("imageinfo", []):
-                if info.get("mediatype") == "BITMAP":
-                    return info.get("thumburl") or info.get("url")
-        return None
-
     try:
         with httpx.Client(timeout=20, follow_redirects=True) as http:
-            # 1. Wikipedia page thumbnail
-            ref_image_url, species_page_url = _wikipedia_thumb(http, plant.species)
+            # 1. Perenual — best for houseplants
+            ref_image_url, species_page_url = _perenual(http, plant.species)
 
-            # 2. Wikimedia Commons file search
+            # 2. Wikipedia thumbnail
             if not ref_image_url:
-                ref_image_url = _commons_search(http, plant.species)
+                ref_image_url, species_page_url = _wikipedia_thumb(http, plant.species)
 
             # 3. Retry with genus only
             if not ref_image_url and " " in plant.species:
                 genus = plant.species.split()[0]
-                ref_image_url, species_page_url = _wikipedia_thumb(http, genus)
+                ref_image_url, species_page_url = _perenual(http, genus)
                 if not ref_image_url:
-                    ref_image_url = _commons_search(http, genus)
+                    ref_image_url, species_page_url = _wikipedia_thumb(http, genus)
+
+            if not ref_image_url:
+                raise HTTPException(status_code=404, detail="No image found for this species")
 
             # Download and save locally
-            local_ref_url = None
-            if ref_image_url:
-                img_resp = http.get(ref_image_url, headers=headers)
-                img_resp.raise_for_status()
-                content_type = img_resp.headers.get("content-type", "image/jpeg")
-                ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
-                local_ref_url = _save_bytes(img_resp.content, ext)
+            img_resp = http.get(ref_image_url, headers=headers)
+            img_resp.raise_for_status()
+            content_type = img_resp.headers.get("content-type", "image/jpeg")
+            ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
+            local_ref_url = _save_bytes(img_resp.content, ext)
 
+    except HTTPException:
+        raise
     except httpx.RequestError as exc:
         raise HTTPException(status_code=503, detail=f"Network error: {exc}")
     except httpx.HTTPStatusError as exc:

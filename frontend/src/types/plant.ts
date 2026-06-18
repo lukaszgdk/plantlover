@@ -55,6 +55,7 @@ export interface SpeciesCare {
 export interface AppConfig {
   setup_completed: boolean;
   plantnet_api_key_set: boolean;
+  perenual_api_key_set: boolean;
   discord_bot_token_set: boolean;
   discord_channel_id: string | null;
   reminder_times: string[];

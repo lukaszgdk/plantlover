@@ -116,6 +116,7 @@ export const api = {
 
   saveConfig: (data: Partial<{
     plantnet_api_key: string;
+    perenual_api_key: string;
     discord_bot_token: string;
     discord_channel_id: string;
     reminder_times: string[];

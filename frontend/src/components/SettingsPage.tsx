@@ -11,6 +11,9 @@ export function SettingsPage() {
   const [plantnetKey, setPlantnetKey] = useState("");
   const [plantnetMsg, setPlantnetMsg] = useState<string | null>(null);
 
+  const [perenualKey, setPerenualKey] = useState("");
+  const [perenualMsg, setPerenualMsg] = useState<string | null>(null);
+
   const [discordToken, setDiscordToken] = useState("");
   const [discordChannel, setDiscordChannel] = useState("");
   const [discordMsg, setDiscordMsg] = useState<string | null>(null);
@@ -29,6 +32,18 @@ export function SettingsPage() {
     });
     api.listRooms().then(setRooms);
   }, []);
+
+  async function savePerenual() {
+    if (!perenualKey.trim()) return;
+    try {
+      await api.saveConfig({ perenual_api_key: perenualKey.trim() });
+      setPerenualMsg("✅ Zapisano");
+      setPerenualKey("");
+      api.getConfig().then(setConfig);
+    } catch {
+      setPerenualMsg("❌ Błąd zapisu");
+    }
+  }
 
   async function savePlantnet() {
     if (!plantnetKey.trim()) return;
@@ -116,6 +131,22 @@ export function SettingsPage() {
           <button className="btn btn-primary" onClick={addRoom}>+ Dodaj</button>
         </div>
         {roomMsg && <p className="status">{roomMsg}</p>}
+      </section>
+
+      {/* Perenual */}
+      <section className="settings-section">
+        <h2>🌿 Perenual API (zdjęcia roślin)</h2>
+        <p className="settings-status">
+          Status: {config?.perenual_api_key_set ? "✅ skonfigurowany" : "⚠️ brak klucza"}
+        </p>
+        <div className="setup-input-group">
+          <input type="password" value={perenualKey}
+            onChange={(e) => setPerenualKey(e.target.value)}
+            placeholder="Klucz API Perenual (sk-...)"
+            onKeyDown={(e) => e.key === "Enter" && savePerenual()} />
+          <button className="btn btn-primary" onClick={savePerenual}>Zapisz</button>
+        </div>
+        {perenualMsg && <p className="status">{perenualMsg}</p>}
       </section>
 
       {/* PlantNet */}
