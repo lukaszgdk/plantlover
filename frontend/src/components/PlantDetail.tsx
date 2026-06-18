@@ -77,7 +77,7 @@ export function PlantDetail() {
     try {
       const updated = await api.fetchWiki(plant.id);
       setPlant(updated);
-      setCareMsg("✅ Zdjęcie referencyjne i link iNaturalist pobrane!");
+      setCareMsg("✅ Zdjęcie referencyjne i link Wikipedia pobrane!");
       setTimeout(() => setCareMsg(null), 4000);
     } catch (e) {
       setCareMsg(`❌ ${(e as Error).message}`);
@@ -147,16 +147,16 @@ export function PlantDetail() {
                   <span className="wiki-actions">
                     {plant.wiki_url && (
                       <a href={plant.wiki_url} target="_blank" rel="noreferrer" className="wiki-link">
-                        🌿 iNaturalist
+                        📖 Wikipedia
                       </a>
                     )}
                     <button
                       className="btn-wiki-fetch"
                       onClick={handleFetchWiki}
                       disabled={fetchingWiki}
-                      title="Pobierz zdjęcie referencyjne z iNaturalist"
+                      title="Pobierz zdjęcie referencyjne z Wikimedia"
                     >
-                      {fetchingWiki ? "…" : plant.wiki_url ? "🔄" : "🔄 Pobierz z iNaturalist"}
+                      {fetchingWiki ? "…" : plant.wiki_url ? "🔄" : "🔄 Pobierz z Wikimedia"}
                     </button>
                   </span>
                 </dd>
