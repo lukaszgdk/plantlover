@@ -33,7 +33,7 @@ export function PlantCard({ plant, onWatered }: Props) {
       <div className="plant-card">
         <div className="plant-card-photo">
           {plant.photo_url ? (
-            <img src={plant.photo_url} alt={plant.name} />
+            <img src={plant.photo_url} alt={plant.name} loading="lazy" decoding="async" />
           ) : (
             <span className="photo-placeholder">🌿</span>
           )}

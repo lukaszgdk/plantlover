@@ -3,8 +3,11 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
+from fastapi.routing import Mount
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from .routers import plants, rooms
 from .routers import schedule as schedule_router
@@ -33,6 +36,15 @@ app.include_router(rooms.router, prefix="/api")
 app.include_router(schedule_router.router, prefix="/api")
 app.include_router(config_router.router, prefix="/api")
 app.include_router(achievements_router.router, prefix="/api")
+
+class UploadsCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/uploads/"):
+            response.headers["Cache-Control"] = "public, max-age=86400, immutable"
+        return response
+
+app.add_middleware(UploadsCacheMiddleware)
 
 # Serve uploaded plant photos
 _uploads_dir = Path(__file__).parent.parent / "uploads"
