@@ -19,11 +19,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities(entities)
 
 
+def _plant_display_name(plant: dict) -> str:
+    room = plant.get("room")
+    if room:
+        return f"{room['name']} {plant['name']}"
+    return plant["name"]
+
+
 def _device_info(coordinator: PlantLoverCoordinator, plant: dict) -> DeviceInfo:
     room = plant.get("room")
     return DeviceInfo(
         identifiers={(DOMAIN, plant["id"])},
-        name=plant["name"],
+        name=_plant_display_name(plant),
         manufacturer="PlantLover",
         model=plant.get("species") or plant.get("common_name") or "Plant",
         suggested_area=room["name"] if room else None,
@@ -46,7 +53,7 @@ class DaysUntilWateringSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def name(self) -> str:
-        return f"{self._plant['name']} — dni do podlania"
+        return f"{_plant_display_name(self._plant)} — dni do podlania"
 
     @property
     def native_value(self):
@@ -84,7 +91,7 @@ class LastWateredSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def name(self) -> str:
-        return f"{self._plant['name']} — ostatnie podlanie"
+        return f"{_plant_display_name(self._plant)} — ostatnie podlanie"
 
     @property
     def native_value(self):

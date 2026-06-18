@@ -34,7 +34,8 @@ class WaterButton(CoordinatorEntity, ButtonEntity):
 
     @property
     def name(self) -> str:
-        return f"{self._plant['name']} — podlej"
+        from .sensor import _plant_display_name
+        return f"{_plant_display_name(self._plant)} — podlej"
 
     @property
     def device_info(self) -> DeviceInfo:
