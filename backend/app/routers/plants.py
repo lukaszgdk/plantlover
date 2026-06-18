@@ -134,10 +134,8 @@ def ha_dashboard(db: Session = Depends(get_db)):
             name: Dni do podlania
           - entity: sensor.{slug}_ostatnie_podlanie
             name: Ostatnie podlanie
-          - type: button
-            entity: button.{slug}_podlej
-            name: Podlej
-            action_name: 💧 Podlej"""
+          - entity: button.{slug}_podlej
+            name: 💧 Podlej"""
         plant_cards.append(card)
 
     yaml = f"""\
