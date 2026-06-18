@@ -174,7 +174,8 @@ def ha_dashboard(db: Session = Depends(get_db)):
         name_seen: dict = {}
         plant_cards = []
         for p in room_plants:
-            base = slugify(p.name)
+            prefix = f"{room_name} " if room else ""
+            base = slugify(f"{prefix}{p.name}")
             name_seen[base] = name_seen.get(base, 0) + 1
             n = name_seen[base]
             slug = base if n == 1 else f"{base}_{n}"
