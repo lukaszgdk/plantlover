@@ -379,11 +379,12 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
                 # sekcje oddzielone \n\nTytuł\n
                 parts = re.split(r'\n{2,}([^\n]+)\n', full_text)
                 intro = parts[0].strip()
+                SKIP = {"przypisy", "bibliografia", "linki zewnętrzne", "references", "external links", "notes", "see also"}
                 sections = []
                 i = 1
                 while i + 1 < len(parts):
                     title_s, body = parts[i].strip(), parts[i + 1].strip()
-                    if title_s and body:
+                    if title_s and body and title_s.lower() not in SKIP:
                         sections.append({"title": title_s, "text": body})
                     i += 2
 
