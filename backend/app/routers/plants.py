@@ -158,6 +158,17 @@ def ha_dashboard(db: Session = Depends(get_db)):
           - entity: button.{base}_podlej{suffix}
             name: 💧 Podlej""")
 
+        # Zbierz entity_id przycisków podlania dla każdej rośliny w pokoju
+        button_entities = []
+        _seen2: dict = {}
+        for p in room_plants:
+            prefix = f"{room_name} " if room else ""
+            b = slugify(f"{prefix}{p.name}")
+            _seen2[b] = _seen2.get(b, 0) + 1
+            suf = f"_{_seen2[b]}" if _seen2[b] > 1 else ""
+            button_entities.append(f"button.{b}_podlej{suf}")
+        all_buttons = "\n              - ".join(button_entities)
+
         cards_str = "\n\n".join(plant_cards)
         room_views.append(f"""\
   - title: "{room_name}"
@@ -171,7 +182,9 @@ def ha_dashboard(db: Session = Depends(get_db)):
           action: call-service
           service: button.press
           target:
-            entity_id: button.{room_button_slug}
+            entity_id:
+              - {all_buttons}
+
 
 {cards_str}""")
 
