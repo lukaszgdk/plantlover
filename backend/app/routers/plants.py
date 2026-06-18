@@ -144,11 +144,7 @@ def ha_dashboard(db: Session = Depends(get_db)):
         filter:
           include:
             - entity_id: "sensor.*_dni_do_podlania"
-              state: "0"
-            - entity_id: "sensor.*_dni_do_podlania"
-              state_filter:
-                - operator: "<"
-                  value: 0
+              state: "< 1"
         sort:
           method: state
           numeric: true
