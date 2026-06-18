@@ -273,62 +273,44 @@ def get_care_log(plant_id: uuid.UUID, db: Session = Depends(get_db)):
 @router.post("/{plant_id}/fetch-info", response_model=Plant)
 def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     import json as json_mod
+    import urllib.parse
+
     plant = get_plant_or_404(plant_id, db)
     if not plant.species:
         raise HTTPException(status_code=400, detail="Plant has no species set")
 
-    perenual_key = os.environ.get("PERENUAL_API_KEY")
-    if not perenual_key:
-        raise HTTPException(status_code=503, detail="Perenual API key not configured. Add it in Settings.")
+    headers = {"User-Agent": "PlantLover/1.0 (homelab plant tracker)"}
+    species_query = plant.species.replace(" ", "_")
 
-    headers = {"User-Agent": "PlantLover/1.0"}
     try:
         with httpx.Client(timeout=15, follow_redirects=True) as http:
-            # 1. Search for species
-            search = http.get(
-                "https://perenual.com/api/species-list",
-                params={"key": perenual_key, "q": plant.species},
+            resp = http.get(
+                f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(species_query)}",
                 headers=headers,
             )
-            search.raise_for_status()
-            results = search.json().get("data", [])
-            if not results:
-                raise HTTPException(status_code=404, detail="Species not found in Perenual database")
-
-            species_id = results[0]["id"]
-
-            # 2. Get detailed info
-            detail = http.get(
-                f"https://perenual.com/api/species/detail/{species_id}",
-                params={"key": perenual_key},
-                headers=headers,
-            )
-            detail.raise_for_status()
-            d = detail.json()
-
+            if resp.status_code == 404:
+                # Try just the genus
+                genus = plant.species.split()[0]
+                resp = http.get(
+                    f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(genus)}",
+                    headers=headers,
+                )
+            if resp.status_code == 404:
+                raise HTTPException(status_code=404, detail="Nie znaleziono gatunku w Wikipedii")
+            resp.raise_for_status()
+            w = resp.json()
     except HTTPException:
         raise
     except httpx.RequestError as exc:
-        raise HTTPException(status_code=503, detail=f"Perenual unreachable: {exc}")
+        raise HTTPException(status_code=503, detail=f"Wikipedia niedostępna: {exc}")
 
     info = {
-        "source": "perenual",
-        "perenual_id": species_id,
-        "origin": d.get("origin") or [],
-        "sunlight": d.get("sunlight") or [],
-        "watering": d.get("watering"),
-        "soil": d.get("soil") or [],
-        "maintenance": d.get("maintenance"),
-        "care_level": d.get("care_level"),
-        "growth_rate": d.get("growth_rate"),
-        "indoor": d.get("indoor"),
-        "drought_tolerant": d.get("drought_tolerant"),
-        "description": d.get("description"),
-        "cycle": d.get("cycle"),
-        "type": d.get("type"),
+        "source": "wikipedia",
+        "title": w.get("title"),
+        "description": w.get("extract"),
+        "wikipedia_url": w.get("content_urls", {}).get("desktop", {}).get("page"),
     }
-    # Remove None values to keep it clean
-    info = {k: v for k, v in info.items() if v is not None and v != []}
+    info = {k: v for k, v in info.items() if v}
 
     plant.plant_info = json_mod.dumps(info, ensure_ascii=False)
     db.commit()

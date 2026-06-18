@@ -178,31 +178,17 @@ export function PlantDetail() {
       {info && (
         <div className="plant-info-card">
           <div className="plant-info-header">
-            <h3>📋 Informacje o gatunku</h3>
+            <h3>📋 {info.title ?? "Informacje o gatunku"}</h3>
             <button className="btn-wiki-fetch" onClick={handleFetchInfo} disabled={fetchingInfo}>
               {fetchingInfo ? "…" : "🔄"}
             </button>
           </div>
-          <dl className="plant-info-grid">
-            {[
-              info.origin?.length && { label: "🌍 Pochodzenie", value: info.origin.join(", ") },
-              info.cycle && { label: "🔄 Cykl życia", value: info.cycle },
-              info.type && { label: "🌱 Typ", value: info.type },
-              info.sunlight?.length && { label: "☀️ Nasłonecznienie", value: info.sunlight.join(", ") },
-              info.watering && { label: "💧 Podlewanie", value: info.watering },
-              info.soil?.length && { label: "🪨 Gleba", value: info.soil.join(", ") },
-              info.maintenance && { label: "🔧 Pielęgnacja", value: info.maintenance },
-              info.care_level && { label: "📊 Poziom trudności", value: info.care_level },
-              info.growth_rate && { label: "📈 Tempo wzrostu", value: info.growth_rate },
-              info.drought_tolerant != null && { label: "🏜️ Tolerancja suszy", value: info.drought_tolerant ? "Tak" : "Nie" },
-              info.indoor != null && { label: "🏠 Roślina doniczkowa", value: info.indoor ? "Tak" : "Nie" },
-            ].filter(Boolean).map(({ label, value }: { label: string; value: string }) => (
-              <div key={label} className="plant-info-row">
-                <dt>{label}</dt><dd>{value}</dd>
-              </div>
-            ))}
-          </dl>
           {info.description && <p className="plant-info-description">{info.description}</p>}
+          {info.wikipedia_url && (
+            <a href={info.wikipedia_url} target="_blank" rel="noopener noreferrer" className="plant-info-wiki-link">
+              🔗 Wikipedia
+            </a>
+          )}
         </div>
       )}
     </div>
