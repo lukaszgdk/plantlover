@@ -63,8 +63,8 @@ def _save_upload(file: UploadFile, content: bytes) -> tuple[str, str]:
     content = _normalize_orientation(content)
     (UPLOADS_DIR / f"{stem}.jpg").write_bytes(content)
     thumb = _make_thumbnail(content)
-    (UPLOADS_DIR / f"{stem}_thumb.jpg").write_bytes(thumb)
-    return f"/uploads/{stem}.jpg", f"/uploads/{stem}_thumb.jpg"
+    (UPLOADS_DIR / f"{stem}_t.jpg").write_bytes(thumb)
+    return f"/uploads/{stem}.jpg", f"/uploads/{stem}_t.jpg"
 
 
 def _save_bytes(content: bytes, ext: str = ".jpg") -> tuple[str, str]:
@@ -72,8 +72,8 @@ def _save_bytes(content: bytes, ext: str = ".jpg") -> tuple[str, str]:
     content = _normalize_orientation(content)
     (UPLOADS_DIR / f"{stem}.jpg").write_bytes(content)
     thumb = _make_thumbnail(content)
-    (UPLOADS_DIR / f"{stem}_thumb.jpg").write_bytes(thumb)
-    return f"/uploads/{stem}.jpg", f"/uploads/{stem}_thumb.jpg"
+    (UPLOADS_DIR / f"{stem}_t.jpg").write_bytes(thumb)
+    return f"/uploads/{stem}.jpg", f"/uploads/{stem}_t.jpg"
 
 
 def _call_plantnet(image_bytes: list[bytes], filenames: list[str]) -> dict:

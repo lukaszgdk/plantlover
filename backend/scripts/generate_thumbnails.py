@@ -59,9 +59,9 @@ with engine.connect() as conn:
 
             thumb = make_thumbnail(fixed)
             stem = photo_path.stem
-            thumb_path = UPLOADS_DIR / f"{stem}_thumb.jpg"
+            thumb_path = UPLOADS_DIR / f"{stem}_t.jpg"
             thumb_path.write_bytes(thumb)
-            thumb_url = f"/uploads/{stem}_thumb.jpg"
+            thumb_url = f"/uploads/{stem}_t.jpg"
 
             conn.execute(
                 text("UPDATE plants SET photo_thumbnail_url = :thumb WHERE id = :id"),
