@@ -15,6 +15,22 @@ import type {
 
 const BASE = "/api/plants";
 
+// Simple TTL cache for data that rarely changes within a session
+const _cache = new Map<string, { data: unknown; expires: number }>();
+
+function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const hit = _cache.get(key);
+  if (hit && hit.expires > Date.now()) return Promise.resolve(hit.data as T);
+  return fn().then((data) => {
+    _cache.set(key, { data, expires: Date.now() + ttlMs });
+    return data;
+  });
+}
+
+export function invalidateCache(...keys: string[]) {
+  keys.forEach((k) => _cache.delete(k));
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options);
   if (!res.ok) {
@@ -35,8 +51,8 @@ function json<T>(url: string, method: string, body: unknown): Promise<T> {
 
 export const api = {
   // ── Plants ────────────────────────────────────────────────────────────────
-  list: () => request<Plant[]>(BASE),
-  get: (id: string) => request<Plant>(`${BASE}/${id}`),
+  list: () => cached<Plant[]>("plants", 10_000, () => request<Plant[]>(BASE)),
+  get: (id: string) => cached<Plant>(`plant:${id}`, 10_000, () => request<Plant>(`${BASE}/${id}`)),
 
   createWithPhoto: (
     data: {
@@ -62,20 +78,22 @@ export const api = {
     if (data.room_id) form.append("room_id", data.room_id);
     if (data.photo_url) form.append("photo_url", data.photo_url);
     if (photo) form.append("photo", photo);
-    return request<Plant>(BASE, { method: "POST", body: form });
+    return request<Plant>(BASE, { method: "POST", body: form }).then((r) => { invalidateCache("plants"); return r; });
   },
 
   update: (id: string, data: PlantUpdate) =>
-    json<Plant>(`${BASE}/${id}`, "PUT", data),
+    json<Plant>(`${BASE}/${id}`, "PUT", data).then((r) => { invalidateCache("plants", `plant:${id}`); return r; }),
 
   patch: (id: string, data: PlantUpdate) =>
-    json<Plant>(`${BASE}/${id}`, "PATCH", data),
+    json<Plant>(`${BASE}/${id}`, "PATCH", data).then((r) => { invalidateCache("plants", `plant:${id}`); return r; }),
 
-  delete: (id: string) => request<void>(`${BASE}/${id}`, { method: "DELETE" }),
+  delete: (id: string) =>
+    request<void>(`${BASE}/${id}`, { method: "DELETE" }).then((r) => { invalidateCache("plants", `plant:${id}`); return r; }),
 
-  fetchInfo: (id: string) => request<Plant>(`${BASE}/${id}/fetch-info`, { method: "POST" }),
+  fetchInfo: (id: string) =>
+    request<Plant>(`${BASE}/${id}/fetch-info`, { method: "POST" }).then((r) => { invalidateCache("plants", `plant:${id}`); return r; }),
 
-  getAchievements: () => request<Achievement[]>("/api/achievements"),
+  getAchievements: () => cached<Achievement[]>("achievements", 60_000, () => request<Achievement[]>("/api/achievements")),
 
   identifyImage: (id: string, file: File, organ = "auto"): Promise<IdentifyResponse> => {
     const form = new FormData();
@@ -91,7 +109,7 @@ export const api = {
   },
 
   water: (id: string) =>
-    request<WaterResponse>(`${BASE}/${id}/water`, { method: "POST" }),
+    request<WaterResponse>(`${BASE}/${id}/water`, { method: "POST" }).then((r) => { invalidateCache("plants", `plant:${id}`, "achievements"); return r; }),
 
   logCare: (id: string, action: string, notes?: string) =>
     json<CareLogEntry>(`${BASE}/${id}/care-log`, "POST", { action, notes }),
@@ -105,12 +123,13 @@ export const api = {
     request<SpeciesCare>(`/api/plants/species-care?species=${encodeURIComponent(species)}`),
 
   // ── Rooms ─────────────────────────────────────────────────────────────────
-  listRooms: () => request<Room[]>("/api/rooms"),
+  listRooms: () => cached<Room[]>("rooms", 60_000, () => request<Room[]>("/api/rooms")),
 
   createRoom: (data: { name: string; icon?: string }) =>
-    json<Room>("/api/rooms", "POST", data),
+    json<Room>("/api/rooms", "POST", data).then((r) => { invalidateCache("rooms"); return r; }),
 
-  deleteRoom: (id: string) => request<void>(`/api/rooms/${id}`, { method: "DELETE" }),
+  deleteRoom: (id: string) =>
+    request<void>(`/api/rooms/${id}`, { method: "DELETE" }).then((r) => { invalidateCache("rooms"); return r; }),
 
   // ── Config / Setup ────────────────────────────────────────────────────────
   getSetupStatus: () => request<{ completed: boolean }>("/api/config/status"),
