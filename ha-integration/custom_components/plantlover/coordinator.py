@@ -20,21 +20,7 @@ class PlantLoverCoordinator(DataUpdateCoordinator):
                 async with session.get(f"{self.base_url}/api/plants", timeout=aiohttp.ClientTimeout(total=15)) as resp:
                     resp.raise_for_status()
                     plants: list[dict] = await resp.json()
-
-                async with session.get(f"{self.base_url}/api/schedule", timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                    resp.raise_for_status()
-                    schedule: list[dict] = await resp.json()
         except aiohttp.ClientError as exc:
             raise UpdateFailed(f"Cannot connect to PlantLover: {exc}") from exc
 
-        schedule_by_id = {p["id"]: p for p in schedule}
-
-        result = {}
-        for plant in plants:
-            pid = plant["id"]
-            sched = schedule_by_id.get(pid, {})
-            result[pid] = {
-                **plant,
-                "days_until_watering": sched.get("days_until_watering"),
-            }
-        return result
+        return {plant["id"]: plant for plant in plants}
