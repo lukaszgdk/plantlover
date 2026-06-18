@@ -47,7 +47,17 @@ with engine.connect() as conn:
 
         try:
             content = photo_path.read_bytes()
-            thumb = make_thumbnail(content)
+
+            # Fix orientation in original
+            img = Image.open(io.BytesIO(content))
+            img = ImageOps.exif_transpose(img)
+            img = img.convert("RGB")
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=92, optimize=True)
+            fixed = buf.getvalue()
+            photo_path.write_bytes(fixed)
+
+            thumb = make_thumbnail(fixed)
             stem = photo_path.stem
             thumb_path = UPLOADS_DIR / f"{stem}_thumb.jpg"
             thumb_path.write_bytes(thumb)
@@ -59,7 +69,7 @@ with engine.connect() as conn:
             )
             orig_kb = len(content) // 1024
             thumb_kb = len(thumb) // 1024
-            print(f"  ✓ {plant_id}: {orig_kb}KB → {thumb_kb}KB")
+            print(f"  ✓ {plant_id}: {orig_kb}KB → {thumb_kb}KB (orientation fixed)")
         except Exception as e:
             print(f"  ✗ {plant_id}: {e}")
 

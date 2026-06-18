@@ -49,21 +49,31 @@ def _make_thumbnail(content: bytes, max_px: int = 400) -> bytes:
     return buf.getvalue()
 
 
+def _normalize_orientation(content: bytes) -> bytes:
+    img = Image.open(io.BytesIO(content))
+    img = ImageOps.exif_transpose(img)
+    img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=92, optimize=True)
+    return buf.getvalue()
+
+
 def _save_upload(file: UploadFile, content: bytes) -> tuple[str, str]:
-    ext = Path(file.filename or "photo.jpg").suffix or ".jpg"
     stem = uuid.uuid4()
-    (UPLOADS_DIR / f"{stem}{ext}").write_bytes(content)
+    content = _normalize_orientation(content)
+    (UPLOADS_DIR / f"{stem}.jpg").write_bytes(content)
     thumb = _make_thumbnail(content)
     (UPLOADS_DIR / f"{stem}_thumb.jpg").write_bytes(thumb)
-    return f"/uploads/{stem}{ext}", f"/uploads/{stem}_thumb.jpg"
+    return f"/uploads/{stem}.jpg", f"/uploads/{stem}_thumb.jpg"
 
 
 def _save_bytes(content: bytes, ext: str = ".jpg") -> tuple[str, str]:
     stem = uuid.uuid4()
-    (UPLOADS_DIR / f"{stem}{ext}").write_bytes(content)
+    content = _normalize_orientation(content)
+    (UPLOADS_DIR / f"{stem}.jpg").write_bytes(content)
     thumb = _make_thumbnail(content)
     (UPLOADS_DIR / f"{stem}_thumb.jpg").write_bytes(thumb)
-    return f"/uploads/{stem}{ext}", f"/uploads/{stem}_thumb.jpg"
+    return f"/uploads/{stem}.jpg", f"/uploads/{stem}_thumb.jpg"
 
 
 def _call_plantnet(image_bytes: list[bytes], filenames: list[str]) -> dict:
