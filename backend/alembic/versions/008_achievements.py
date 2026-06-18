@@ -29,7 +29,7 @@ def upgrade():
         sa.Column("id", sa.String, primary_key=True),
         sa.Column("achievement_key", sa.String, sa.ForeignKey("achievements.key"), nullable=False),
         sa.Column("unlocked_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("plant_id", sa.String, sa.ForeignKey("plants.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("plant_id", sa.String, nullable=True),
     )
 
     # Seed achievement definitions
