@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from .routers import plants, rooms
 from .routers import schedule as schedule_router
 from .routers import config as config_router
+from .routers import achievements as achievements_router
 from .routers.config import load_config_into_env
 
 if not os.environ.get("DATABASE_URL"):
@@ -31,6 +32,7 @@ app.include_router(plants.router, prefix="/api")
 app.include_router(rooms.router, prefix="/api")
 app.include_router(schedule_router.router, prefix="/api")
 app.include_router(config_router.router, prefix="/api")
+app.include_router(achievements_router.router, prefix="/api")
 
 # Serve uploaded plant photos
 _uploads_dir = Path(__file__).parent.parent / "uploads"

@@ -7,6 +7,33 @@ from sqlalchemy.dialects.postgresql import UUID
 from .database import Base
 
 
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    icon: Mapped[str] = mapped_column(String(16), nullable=False)
+    condition_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    condition_value: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    unlocks: Mapped[list["UserAchievement"]] = relationship("UserAchievement", back_populates="achievement")
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    achievement_key: Mapped[str] = mapped_column(String(64), ForeignKey("achievements.key"), nullable=False)
+    unlocked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    plant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("plants.id", ondelete="SET NULL"), nullable=True
+    )
+
+    achievement: Mapped["Achievement"] = relationship("Achievement", back_populates="unlocks")
+    plant: Mapped["Plant | None"] = relationship("Plant")
+
+
 class Room(Base):
     __tablename__ = "rooms"
 

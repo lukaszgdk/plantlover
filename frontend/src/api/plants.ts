@@ -1,4 +1,5 @@
 import type {
+  Achievement,
   AppConfig,
   CareLogEntry,
   IdentifyNewResponse,
@@ -73,6 +74,8 @@ export const api = {
   delete: (id: string) => request<void>(`${BASE}/${id}`, { method: "DELETE" }),
 
   fetchInfo: (id: string) => request<Plant>(`${BASE}/${id}/fetch-info`, { method: "POST" }),
+
+  getAchievements: () => request<Achievement[]>("/api/achievements"),
 
   identifyImage: (id: string, file: File, organ = "auto"): Promise<IdentifyResponse> => {
     const form = new FormData();

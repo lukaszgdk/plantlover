@@ -142,5 +142,6 @@ class CareLogEntry(BaseModel):
     logged_at: datetime
     action: str
     notes: str | None
+    newly_unlocked: list[str] = []
 
     model_config = {"from_attributes": True}

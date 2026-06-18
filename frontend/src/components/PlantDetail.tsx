@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/plants";
 import { PhotoCapture } from "./PhotoCapture";
-import type { IdentifyResponse, Plant, Room } from "../types/plant";
+import { AchievementToast } from "./AchievementToast";
+import type { Achievement, IdentifyResponse, Plant, Room } from "../types/plant";
 
 export function PlantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,13 +14,15 @@ export function PlantDetail() {
   const [error, setError] = useState<string | null>(null);
   const [careMsg, setCareMsg] = useState<string | null>(null);
   const [watering, setWatering] = useState(false);
+  const [allAchievements, setAllAchievements] = useState<Achievement[]>([]);
+  const [newlyUnlocked, setNewlyUnlocked] = useState<string[]>([]);
   const [savingRoom, setSavingRoom] = useState(false);
   const [fetchingInfo, setFetchingInfo] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    Promise.all([api.get(id), api.listRooms()])
-      .then(([p, r]) => { setPlant(p); setRooms(r); })
+    Promise.all([api.get(id), api.listRooms(), api.getAchievements()])
+      .then(([p, r, a]) => { setPlant(p); setRooms(r); setAllAchievements(a); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -35,11 +38,14 @@ export function PlantDetail() {
     if (!plant) return;
     setWatering(true);
     try {
-      await api.water(plant.id);
+      const res = await api.water(plant.id);
       const updated = await api.get(plant.id);
       setPlant(updated);
-      setCareMsg("Watered! ✅");
+      setCareMsg("Podlano! 💧");
       setTimeout(() => setCareMsg(null), 3000);
+      if (res.newly_unlocked?.length) {
+        setNewlyUnlocked(res.newly_unlocked);
+      }
     } catch (e) {
       setCareMsg((e as Error).message);
     } finally {
@@ -96,6 +102,13 @@ export function PlantDetail() {
 
   return (
     <div className="detail-page">
+      {newlyUnlocked.length > 0 && (
+        <AchievementToast
+          achievements={allAchievements}
+          keys={newlyUnlocked}
+          onDone={() => setNewlyUnlocked([])}
+        />
+      )}
       <div className="page-header">
         <h1>{plant.name}</h1>
         <div className="header-actions">

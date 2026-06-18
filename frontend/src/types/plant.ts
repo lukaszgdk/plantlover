@@ -75,6 +75,7 @@ export interface WaterResponse {
   plant_id: string;
   last_watered: string;
   next_watering: string | null;
+  newly_unlocked: string[];
 }
 
 export interface ScheduledPlant {
@@ -93,4 +94,14 @@ export interface CareLogEntry {
   logged_at: string;
   action: string;
   notes: string | null;
+  newly_unlocked: string[];
+}
+
+export interface Achievement {
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  unlocked: boolean;
+  unlocked_at: string | null;
 }

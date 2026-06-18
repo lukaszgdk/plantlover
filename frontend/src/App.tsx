@@ -7,6 +7,7 @@ import { EditPlantForm } from "./components/EditPlantForm";
 import { WateringCalendar } from "./components/WateringCalendar";
 import { SetupWizard } from "./components/SetupWizard";
 import { SettingsPage } from "./components/SettingsPage";
+import AchievementsPage from "./components/AchievementsPage";
 import { api } from "./api/plants";
 import "./index.css";
 
@@ -41,6 +42,9 @@ function AppShell() {
             <NavLink to="/calendar" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
               Calendar
             </NavLink>
+            <NavLink to="/achievements" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
+              🏅
+            </NavLink>
             <NavLink to="/settings" className={({ isActive }) => isActive ? "nav-link active" : "nav-link"}>
               ⚙️
             </NavLink>
@@ -56,6 +60,7 @@ function AppShell() {
           <Route path="/plants/:id/edit" element={<EditPlantForm />} />
           <Route path="/plants/:id" element={<PlantDetail />} />
           <Route path="/calendar" element={<WateringCalendar />} />
+          <Route path="/achievements" element={<AchievementsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

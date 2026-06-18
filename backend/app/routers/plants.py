@@ -291,7 +291,7 @@ def identify_plant(
     )
 
 
-@router.post("/{plant_id}/water", response_model=WaterResponse)
+@router.post("/{plant_id}/water")
 def water_plant(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     plant = get_plant_or_404(plant_id, db)
     now = datetime.now(tz=timezone.utc)
@@ -301,13 +301,16 @@ def water_plant(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         if plant.watering_interval_days
         else None
     )
+    from ..achievements import check_and_unlock
+    newly_unlocked = check_and_unlock(db, plant, now)
     db.commit()
     db.refresh(plant)
-    return WaterResponse(
-        plant_id=plant.id,
-        last_watered=plant.last_watered,
-        next_watering=plant.next_watering,
-    )
+    return {
+        "plant_id": str(plant.id),
+        "last_watered": plant.last_watered,
+        "next_watering": plant.next_watering,
+        "newly_unlocked": newly_unlocked,
+    }
 
 
 @router.post("/{plant_id}/care-log", response_model=CareLogEntry, status_code=status.HTTP_201_CREATED)
@@ -337,9 +340,18 @@ def log_care_event(
         notes=payload.notes,
     )
     db.add(entry)
+
+    newly_unlocked: list[str] = []
+    if payload.action == "watered":
+        from ..achievements import check_and_unlock
+        newly_unlocked = check_and_unlock(db, plant, watered_at)
+
     db.commit()
     db.refresh(entry)
-    return entry
+
+    result = entry.__dict__.copy()
+    result["newly_unlocked"] = newly_unlocked
+    return result
 
 
 @router.get("/{plant_id}/care-log", response_model=list[CareLogEntry])
