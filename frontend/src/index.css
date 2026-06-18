@@ -516,6 +516,20 @@ dd { font-size: 0.95rem; }
   margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);
   font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;
 }
+.plant-info-sections { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
+.plant-info-details {
+  border-bottom: 1px solid var(--border); padding: 0.5rem 0;
+}
+.plant-info-details summary {
+  cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--text);
+  list-style: none; display: flex; align-items: center; gap: 0.4rem;
+  user-select: none;
+}
+.plant-info-details summary::before { content: "▶"; font-size: 0.6rem; color: var(--text-muted); transition: transform 0.15s; }
+.plant-info-details[open] summary::before { transform: rotate(90deg); }
+.plant-info-details p {
+  margin: 0.5rem 0 0.25rem; font-size: 0.83rem; color: var(--text-muted); line-height: 1.6;
+}
 .plant-info-wiki-link {
   display: inline-block; margin-top: 0.85rem; font-size: 0.82rem;
   color: var(--primary); text-decoration: none; opacity: 0.85;

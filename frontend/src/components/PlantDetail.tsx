@@ -210,6 +210,17 @@ export function PlantDetail() {
             <p className="plant-info-description">{info.description}</p>
           )}
 
+          {info.sections?.length > 0 && (
+            <div className="plant-info-sections">
+              {info.sections.map((s: { title: string; text: string }) => (
+                <details key={s.title} className="plant-info-details">
+                  <summary>{s.title}</summary>
+                  <p>{s.text}</p>
+                </details>
+              ))}
+            </div>
+          )}
+
           {info.wikipedia_url && (
             <a href={info.wikipedia_url} target="_blank" rel="noopener noreferrer" className="plant-info-wiki-link">
               🔗 Więcej na Wikipedii →

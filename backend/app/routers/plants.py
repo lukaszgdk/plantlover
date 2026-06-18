@@ -332,25 +332,43 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-        # 3. Wikipedia PL → EN fallback — opis tekstowy
+        # 3. Wikipedia PL → EN fallback — pełny artykuł przez MediaWiki API
+        def _wiki_fetch(lang: str, title: str) -> dict | None:
+            r = http.get(f"https://{lang}.wikipedia.org/w/api.php", headers=ua, params={
+                "action": "query", "titles": title,
+                "prop": "extracts|info", "explaintext": "true",
+                "exsectionformat": "plain", "inprop": "url", "format": "json",
+            })
+            pages = r.json().get("query", {}).get("pages", {})
+            page = list(pages.values())[0] if pages else {}
+            if "missing" in page or not page.get("extract"):
+                return None
+            return page
+
         try:
-            slug = urllib.parse.quote(species.replace(" ", "_"))
-            for lang in ("pl", "en"):
-                wp = http.get(
-                    f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{slug}", headers=ua
-                )
-                if wp.status_code == 404 and lang == "pl":
-                    # spróbuj samym rodzajem
-                    slug2 = urllib.parse.quote(species.split()[0])
-                    wp = http.get(
-                        f"https://pl.wikipedia.org/api/rest_v1/page/summary/{slug2}", headers=ua
-                    )
-                if wp.status_code == 200:
-                    w = wp.json()
-                    info["description"] = w.get("extract")
-                    info["wikipedia_url"] = w.get("content_urls", {}).get("desktop", {}).get("page")
-                    info["polish_name"] = w.get("title") if lang == "pl" else None
-                    break
+            slug = species.replace(" ", "_")
+            page = _wiki_fetch("pl", slug)
+            if not page:
+                page = _wiki_fetch("en", slug)
+            if not page:
+                page = _wiki_fetch("pl", species.split()[0])
+            if page:
+                full_text = page.get("extract", "")
+                # Rozbij na sekcje (oddzielone podwójnym \n\n + nagłówek)
+                import re
+                parts = re.split(r'\n{2,}(?=[A-ZŁŚŹŻĆÓĄĘ][^\n]{2,}\n)', full_text)
+                intro = parts[0].strip() if parts else full_text[:600]
+                sections = []
+                for part in parts[1:]:
+                    lines = part.strip().split("\n", 1)
+                    if len(lines) == 2:
+                        sections.append({"title": lines[0].strip(), "text": lines[1].strip()})
+                info["description"] = intro
+                if sections:
+                    info["sections"] = sections
+                info["wikipedia_url"] = page.get("fullurl")
+                if "pl.wikipedia" in (page.get("fullurl") or ""):
+                    info["polish_name"] = page.get("title")
         except Exception:
             pass
 
