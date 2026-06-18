@@ -516,6 +516,7 @@ dd { font-size: 0.95rem; }
   margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);
   font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;
 }
+.plant-info-fallback-note { margin: 0.75rem 0 0; font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 .plant-info-sections { margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
 .plant-info-details {
   border-bottom: 1px solid var(--border); padding: 0.5rem 0;

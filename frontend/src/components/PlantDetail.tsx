@@ -221,6 +221,10 @@ export function PlantDetail() {
             </div>
           )}
 
+          {info.source_label && (
+            <p className="plant-info-fallback-note">ℹ️ {info.source_label}</p>
+          )}
+
           {info.wikipedia_url && (
             <a href={info.wikipedia_url} target="_blank" rel="noopener noreferrer" className="plant-info-wiki-link">
               🔗 Więcej na Wikipedii →

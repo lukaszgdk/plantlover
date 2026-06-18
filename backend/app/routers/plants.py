@@ -364,22 +364,12 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
 
         try:
             import re
-            page, lang_used = None, "pl"
-            if pl_wiki_title:
-                page = _wiki_fetch("pl", pl_wiki_title)
-            if not page and en_wiki_title:
-                page, lang_used = _wiki_fetch("en", en_wiki_title), "en"
-            if not page:
-                page = _wiki_fetch("pl", species.replace(" ", "_"))
-            if not page:
-                page, lang_used = _wiki_fetch("en", species.replace(" ", "_")), "en"
+            SKIP = {"przypisy", "bibliografia", "linki zewnętrzne", "references", "external links", "notes", "see also", "footnotes"}
 
-            if page:
+            def _parse_page(page: dict, lang: str, source_label: str | None = None) -> dict:
                 full_text = page.get("extract", "")
-                # sekcje oddzielone \n\nTytuł\n
                 parts = re.split(r'\n{2,}([^\n]+)\n', full_text)
                 intro = parts[0].strip()
-                SKIP = {"przypisy", "bibliografia", "linki zewnętrzne", "references", "external links", "notes", "see also"}
                 sections = []
                 i = 1
                 while i + 1 < len(parts):
@@ -387,13 +377,58 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
                     if title_s and body and title_s.lower() not in SKIP:
                         sections.append({"title": title_s, "text": body})
                     i += 2
+                result = {
+                    "description": intro,
+                    "sections": sections or None,
+                    "wikipedia_url": page.get("fullurl"),
+                    "polish_name": page.get("title") if lang == "pl" else None,
+                    "source_label": source_label,
+                }
+                return {k: v for k, v in result.items() if v}
 
-                info["description"] = intro
-                if sections:
-                    info["sections"] = sections
-                info["wikipedia_url"] = page.get("fullurl")
-                if lang_used == "pl":
-                    info["polish_name"] = page.get("title")
+            def _wikidata_sitelinks(search_term: str) -> tuple[str | None, str | None, str | None]:
+                sr = http.get("https://www.wikidata.org/w/api.php", headers=ua, params={
+                    "action": "wbsearchentities", "search": search_term,
+                    "language": "en", "type": "item", "format": "json", "limit": 1,
+                })
+                res = sr.json().get("search", [])
+                if not res:
+                    return None, None, None
+                qid_ = res[0]["id"]
+                er = http.get("https://www.wikidata.org/w/api.php", headers=ua, params={
+                    "action": "wbgetentities", "ids": qid_,
+                    "props": "sitelinks", "sitefilter": "plwiki|enwiki", "format": "json",
+                })
+                sl = er.json()["entities"][qid_].get("sitelinks", {})
+                return qid_, sl.get("plwiki", {}).get("title"), sl.get("enwiki", {}).get("title")
+
+            def _best_page(pl_title: str | None, en_title: str | None) -> tuple[dict | None, str]:
+                if pl_title:
+                    p = _wiki_fetch("pl", pl_title)
+                    if p:
+                        return p, "pl"
+                if en_title:
+                    p = _wiki_fetch("en", en_title)
+                    if p:
+                        return p, "en"
+                return None, "pl"
+
+            # A) dokładny gatunek
+            page, lang_used = _best_page(pl_wiki_title, en_wiki_title)
+            fallback_label = None
+
+            # B) fallback: artykuł rodzaju (Chlorophytum, Ficus, ...)
+            if not page:
+                genus = species.split()[0]
+                _, pl_g, en_g = _wikidata_sitelinks(genus)
+                page, lang_used = _best_page(pl_g, en_g)
+                if page:
+                    fallback_label = f"Brak artykułu dla gatunku — pokazuję informacje o rodzaju {genus}"
+
+            if page:
+                parsed = _parse_page(page, lang_used, fallback_label)
+                info.update(parsed)
+
         except Exception:
             pass
 
