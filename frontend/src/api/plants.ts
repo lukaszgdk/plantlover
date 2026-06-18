@@ -46,6 +46,7 @@ export const api = {
       sunlight?: SunlightLevel;
       notes?: string;
       room_id?: string;
+      photo_url?: string;
     },
     photo?: File,
   ): Promise<Plant> => {
@@ -58,6 +59,7 @@ export const api = {
     if (data.sunlight) form.append("sunlight", data.sunlight);
     if (data.notes) form.append("notes", data.notes);
     if (data.room_id) form.append("room_id", data.room_id);
+    if (data.photo_url) form.append("photo_url", data.photo_url);
     if (photo) form.append("photo", photo);
     return request<Plant>(BASE, { method: "POST", body: form });
   },
