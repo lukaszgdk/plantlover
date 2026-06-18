@@ -19,10 +19,7 @@ export function PlantDetail() {
   useEffect(() => {
     if (!id) return;
     Promise.all([api.get(id), api.listRooms()])
-      .then(([p, r]) => {
-        setPlant(p);
-        setRooms(r);
-      })
+      .then(([p, r]) => { setPlant(p); setRooms(r); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -54,9 +51,7 @@ export function PlantDetail() {
     if (!plant) return;
     setSavingRoom(true);
     try {
-      const updated = await api.patch(plant.id, {
-        room_id: newRoomId || undefined,
-      });
+      const updated = await api.patch(plant.id, { room_id: newRoomId || undefined });
       setPlant(updated);
     } catch (e) {
       setCareMsg((e as Error).message);
@@ -95,45 +90,27 @@ export function PlantDetail() {
   if (error) return <p className="status error">{error}</p>;
   if (!plant) return null;
 
-  const lastWateredDisplay = plant.last_watered
-    ? new Date(plant.last_watered).toLocaleString()
-    : null;
-  const nextWateringDisplay = plant.next_watering
-    ? new Date(plant.next_watering).toLocaleDateString()
-    : null;
+  const lastWateredDisplay = plant.last_watered ? new Date(plant.last_watered).toLocaleString() : null;
+  const nextWateringDisplay = plant.next_watering ? new Date(plant.next_watering).toLocaleDateString() : null;
+  const info = parsePlantInfo(plant.plant_info);
 
   return (
     <div className="detail-page">
       <div className="page-header">
         <h1>{plant.name}</h1>
         <div className="header-actions">
-          <button className="btn btn-secondary" onClick={() => navigate(-1)}>
-            ← Back
-          </button>
-          <button className="btn btn-secondary" onClick={() => navigate(`/plants/${plant.id}/edit`)}>
-            ✏️ Edit
-          </button>
-          <button className="btn btn-danger" onClick={handleDelete}>
-            Delete
-          </button>
+          <button className="btn btn-secondary" onClick={() => navigate(-1)}>← Back</button>
+          <button className="btn btn-secondary" onClick={() => navigate(`/plants/${plant.id}/edit`)}>✏️ Edit</button>
+          <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
         </div>
       </div>
 
       <div className="detail-body">
-        <div className="detail-photo-col">
-          <div className="detail-photo">
-            {plant.photo_url ? (
-              <img src={plant.photo_url} alt={plant.name} />
-            ) : (
-              <span className="photo-placeholder large">🌿</span>
-            )}
-          </div>
-
-          {plant.user_photo_url && (
-            <div className="detail-gallery">
-              <p className="gallery-label">📷 Twoje zdjęcie</p>
-              <img src={plant.user_photo_url} alt="Zdjęcie użytkownika" className="gallery-thumb" />
-            </div>
+        <div className="detail-photo">
+          {plant.photo_url ? (
+            <img src={plant.photo_url} alt={plant.name} />
+          ) : (
+            <span className="photo-placeholder large">🌿</span>
           )}
         </div>
 
@@ -143,19 +120,14 @@ export function PlantDetail() {
               <>
                 <dt>Species</dt>
                 <dd>
-                  <span>{plant.species}</span>
+                  {plant.species}
                   {plant.common_name && (
-                    <span style={{ color: "var(--gray)", fontStyle: "italic" }}>
-                      {" "}({plant.common_name})
-                    </span>
+                    <span style={{ color: "var(--gray)", fontStyle: "italic" }}> ({plant.common_name})</span>
                   )}
-                  <button
-                    className="btn-wiki-fetch"
-                    onClick={handleFetchInfo}
-                    disabled={fetchingInfo}
-                    title="Pobierz informacje o roślinie z Perenual"
-                  >
-                    {fetchingInfo ? "…" : plant.plant_info ? "🔄" : "🔍 Pobierz info"}
+                  {" "}
+                  <button className="btn-wiki-fetch" onClick={handleFetchInfo} disabled={fetchingInfo}
+                    title="Pobierz informacje o roślinie">
+                    {fetchingInfo ? "…" : info ? "🔄" : "🔍 Pobierz info"}
                   </button>
                 </dd>
               </>
@@ -172,52 +144,26 @@ export function PlantDetail() {
                 <dd>{plant.watering_interval_days} days</dd>
               </>
             )}
-            {lastWateredDisplay && (
-              <>
-                <dt>Last watered</dt>
-                <dd>{lastWateredDisplay}</dd>
-              </>
-            )}
-            {nextWateringDisplay && (
-              <>
-                <dt>Next watering</dt>
-                <dd>{nextWateringDisplay}</dd>
-              </>
-            )}
+            {lastWateredDisplay && (<><dt>Last watered</dt><dd>{lastWateredDisplay}</dd></>)}
+            {nextWateringDisplay && (<><dt>Next watering</dt><dd>{nextWateringDisplay}</dd></>)}
             <dt>Added</dt>
             <dd>{new Date(plant.created_at).toLocaleDateString()}</dd>
-
             <dt>Room</dt>
             <dd>
-              <select
-                value={plant.room_id ?? ""}
-                onChange={(e) => handleRoomChange(e.target.value)}
-                disabled={savingRoom}
-                style={{ fontSize: "inherit" }}
-              >
+              <select value={plant.room_id ?? ""} onChange={(e) => handleRoomChange(e.target.value)}
+                disabled={savingRoom} style={{ fontSize: "inherit" }}>
                 <option value="">— no room —</option>
                 {rooms.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.icon} {r.name}
-                  </option>
+                  <option key={r.id} value={r.id}>{r.icon} {r.name}</option>
                 ))}
               </select>
             </dd>
           </dl>
 
-          {plant.notes && (
-            <div className="notes">
-              <h3>Notes</h3>
-              <p>{plant.notes}</p>
-            </div>
-          )}
+          {plant.notes && <div className="notes"><h3>Notes</h3><p>{plant.notes}</p></div>}
 
           <div className="care-actions">
-            <button
-              className="btn btn-primary"
-              onClick={handleWater}
-              disabled={watering}
-            >
+            <button className="btn btn-primary" onClick={handleWater} disabled={watering}>
               {watering ? "Watering…" : "💧 Mark as watered"}
             </button>
           </div>
@@ -229,44 +175,36 @@ export function PlantDetail() {
         </div>
       </div>
 
-      {(() => {
-        const info = parsePlantInfo(plant.plant_info);
-        if (!info) return null;
-        const rows: { label: string; value: string }[] = [];
-        if (info.origin?.length) rows.push({ label: "🌍 Pochodzenie", value: info.origin.join(", ") });
-        if (info.cycle) rows.push({ label: "🔄 Cykl życia", value: info.cycle });
-        if (info.type) rows.push({ label: "🌱 Typ", value: info.type });
-        if (info.sunlight?.length) rows.push({ label: "☀️ Nasłonecznienie", value: info.sunlight.join(", ") });
-        if (info.watering) rows.push({ label: "💧 Podlewanie", value: info.watering });
-        if (info.soil?.length) rows.push({ label: "🪨 Gleba", value: info.soil.join(", ") });
-        if (info.maintenance) rows.push({ label: "🔧 Pielęgnacja", value: info.maintenance });
-        if (info.care_level) rows.push({ label: "📊 Poziom trudności", value: info.care_level });
-        if (info.growth_rate) rows.push({ label: "📈 Tempo wzrostu", value: info.growth_rate });
-        if (info.drought_tolerant != null) rows.push({ label: "🏜️ Tolerancja suszy", value: info.drought_tolerant ? "Tak" : "Nie" });
-        if (info.indoor != null) rows.push({ label: "🏠 Roślina doniczkowa", value: info.indoor ? "Tak" : "Nie" });
-        return (
-          <div className="plant-info-card">
-            <div className="plant-info-header">
-              <h3>📋 Informacje o gatunku</h3>
-              <button className="btn-wiki-fetch" onClick={handleFetchInfo} disabled={fetchingInfo}>
-                {fetchingInfo ? "…" : "🔄"}
-              </button>
-            </div>
-            <dl className="plant-info-grid">
-              {rows.map(({ label, value }) => (
-                <div key={label} className="plant-info-row">
-                  <dt>{label}</dt>
-                  <dd>{value}</dd>
-                </div>
-              ))}
-            </dl>
-            {info.description && (
-              <p className="plant-info-description">{info.description}</p>
-            )}
+      {info && (
+        <div className="plant-info-card">
+          <div className="plant-info-header">
+            <h3>📋 Informacje o gatunku</h3>
+            <button className="btn-wiki-fetch" onClick={handleFetchInfo} disabled={fetchingInfo}>
+              {fetchingInfo ? "…" : "🔄"}
+            </button>
           </div>
-        );
-      })()}
-
+          <dl className="plant-info-grid">
+            {[
+              info.origin?.length && { label: "🌍 Pochodzenie", value: info.origin.join(", ") },
+              info.cycle && { label: "🔄 Cykl życia", value: info.cycle },
+              info.type && { label: "🌱 Typ", value: info.type },
+              info.sunlight?.length && { label: "☀️ Nasłonecznienie", value: info.sunlight.join(", ") },
+              info.watering && { label: "💧 Podlewanie", value: info.watering },
+              info.soil?.length && { label: "🪨 Gleba", value: info.soil.join(", ") },
+              info.maintenance && { label: "🔧 Pielęgnacja", value: info.maintenance },
+              info.care_level && { label: "📊 Poziom trudności", value: info.care_level },
+              info.growth_rate && { label: "📈 Tempo wzrostu", value: info.growth_rate },
+              info.drought_tolerant != null && { label: "🏜️ Tolerancja suszy", value: info.drought_tolerant ? "Tak" : "Nie" },
+              info.indoor != null && { label: "🏠 Roślina doniczkowa", value: info.indoor ? "Tak" : "Nie" },
+            ].filter(Boolean).map(({ label, value }: { label: string; value: string }) => (
+              <div key={label} className="plant-info-row">
+                <dt>{label}</dt><dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          {info.description && <p className="plant-info-description">{info.description}</p>}
+        </div>
+      )}
     </div>
   );
 }

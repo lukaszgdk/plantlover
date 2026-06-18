@@ -12,8 +12,6 @@ export interface Plant {
   species: string | null;
   common_name: string | null;
   photo_url: string | null;
-  user_photo_url: string | null;
-  wiki_url: string | null;
   plant_info: string | null;
   watering_interval_days: number | null;
   last_watered: string | null;

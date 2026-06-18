@@ -129,9 +129,10 @@ jobs:
       - name: "Update .env in CT 270"
         run: |
           DATABASE_URL="postgresql://plantlover:${PLANTLOVER_DB_PASS}@${POSTGRES_HOST}:5432/plantlover"
+          PERENUAL_API_KEY="${{ secrets.PERENUAL_API_KEY }}"
           ssh pve2 "pct exec ${PLANTLOVER_CT} -- bash -c \
-            'printf \"DATABASE_URL=%s\nPLANTNET_API_KEY=%s\n\" \
-              \"${DATABASE_URL}\" \"${PLANTNET_API_KEY}\" \
+            'printf \"DATABASE_URL=%s\nPLANTNET_API_KEY=%s\nPERENUAL_API_KEY=%s\n\" \
+              \"${DATABASE_URL}\" \"${PLANTNET_API_KEY}\" \"${PERENUAL_API_KEY}\" \
               > /opt/plantlover/backend/.env && chmod 600 /opt/plantlover/backend/.env'"
 
       - name: "Install Python dependencies in CT 270"
