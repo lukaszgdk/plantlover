@@ -201,20 +201,6 @@ def ha_dashboard(db: Session = Depends(get_db)):
     icon: mdi:home-floor-1
     cards:
 
-      - type: custom:auto-entities
-        card:
-          type: glance
-          title: "🌱 {room_name} — dni do podlania"
-          show_name: true
-          show_state: true
-          show_icon: true
-        filter:
-          include:
-            - entity_id: "sensor.*_dni_do_podlania"
-              area: "{room_name}"
-        sort:
-          method: state
-          numeric: true
 
       - type: button
         name: "💧 Podlej wszystkie w {room_name}"
