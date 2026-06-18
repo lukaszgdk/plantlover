@@ -280,7 +280,8 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     ref_image_url: str | None = None
     species_page_url: str | None = None
 
-    def _wikimedia_image(http: httpx.Client, query: str) -> tuple[str | None, str | None]:
+    def _wikipedia_thumb(http: httpx.Client, query: str) -> tuple[str | None, str | None]:
+        """Try Wikipedia page thumbnail first — fast, good quality."""
         resp = http.get(
             "https://en.wikipedia.org/w/api.php",
             params={
@@ -292,24 +293,66 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         )
         if not resp.is_success:
             return None, None
-        pages = resp.json().get("query", {}).get("pages", [])
-        for page in pages:
+        for page in resp.json().get("query", {}).get("pages", []):
             if page.get("missing"):
                 continue
             image_url = (page.get("thumbnail") or {}).get("source")
             page_url = page.get("fullurl")
-            return image_url, page_url
+            if image_url:
+                return image_url, page_url
         return None, None
 
-    try:
-        with httpx.Client(timeout=15, follow_redirects=True) as http:
-            # 1. Full species name
-            ref_image_url, species_page_url = _wikimedia_image(http, plant.species)
+    def _commons_search(http: httpx.Client, query: str) -> str | None:
+        """Search Wikimedia Commons for image files directly."""
+        search_resp = http.get(
+            "https://commons.wikimedia.org/w/api.php",
+            params={
+                "action": "query", "list": "search",
+                "srsearch": query, "srnamespace": 6,
+                "srlimit": 5, "format": "json",
+            },
+            headers=headers,
+        )
+        if not search_resp.is_success:
+            return None
+        hits = search_resp.json().get("query", {}).get("search", [])
+        for hit in hits:
+            title = hit.get("title", "")
+            if not any(title.lower().endswith(ext) for ext in (".jpg", ".jpeg", ".png")):
+                continue
+            info_resp = http.get(
+                "https://commons.wikimedia.org/w/api.php",
+                params={
+                    "action": "query", "titles": title,
+                    "prop": "imageinfo", "iiprop": "url",
+                    "iiurlwidth": 800, "format": "json",
+                },
+                headers=headers,
+            )
+            if not info_resp.is_success:
+                continue
+            pages = info_resp.json().get("query", {}).get("pages", {})
+            for page in pages.values():
+                infos = page.get("imageinfo", [])
+                if infos:
+                    return infos[0].get("thumburl") or infos[0].get("url")
+        return None
 
-            # 2. Genus only as fallback
+    try:
+        with httpx.Client(timeout=20, follow_redirects=True) as http:
+            # 1. Wikipedia page thumbnail (fastest)
+            ref_image_url, species_page_url = _wikipedia_thumb(http, plant.species)
+
+            # 2. Wikimedia Commons file search
+            if not ref_image_url:
+                ref_image_url = _commons_search(http, plant.species)
+
+            # 3. Retry both with genus only
             if not ref_image_url and " " in plant.species:
                 genus = plant.species.split()[0]
-                ref_image_url, species_page_url = _wikimedia_image(http, genus)
+                ref_image_url, species_page_url = _wikipedia_thumb(http, genus)
+                if not ref_image_url:
+                    ref_image_url = _commons_search(http, genus)
 
     except httpx.RequestError as exc:
         raise HTTPException(status_code=503, detail=f"Network error: {exc}")

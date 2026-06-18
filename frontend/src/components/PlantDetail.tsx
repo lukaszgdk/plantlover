@@ -74,11 +74,17 @@ export function PlantDetail() {
     if (!plant) return;
     setFetchingWiki(true);
     setCareMsg(null);
+    const prevPhoto = plant.photo_url;
     try {
       const updated = await api.fetchWiki(plant.id);
       setPlant(updated);
-      setCareMsg("✅ Zdjęcie referencyjne i link Wikipedia pobrane!");
-      setTimeout(() => setCareMsg(null), 4000);
+      const gotPhoto = updated.photo_url !== prevPhoto;
+      const gotLink = !!updated.wiki_url;
+      if (gotPhoto && gotLink) setCareMsg("✅ Zdjęcie referencyjne i link Wikipedia pobrane!");
+      else if (gotPhoto) setCareMsg("✅ Zdjęcie referencyjne pobrane!");
+      else if (gotLink) setCareMsg("⚠️ Link Wikipedia zapisany, ale nie znaleziono zdjęcia dla tego gatunku.");
+      else setCareMsg("⚠️ Nie znaleziono zdjęcia ani linku dla tego gatunku.");
+      setTimeout(() => setCareMsg(null), 5000);
     } catch (e) {
       setCareMsg(`❌ ${(e as Error).message}`);
     } finally {
