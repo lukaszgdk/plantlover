@@ -337,20 +337,26 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
                 if not ref_image_url:
                     ref_image_url, species_page_url = _wikipedia_thumb(http, genus)
 
-            # Build list of image candidates to try in order
+            # Collect all candidate image URLs in priority order
             wiki_img, wiki_page = _wikipedia_thumb(http, plant.species)
             if not wiki_img and " " in plant.species:
                 wiki_img, wiki_page = _wikipedia_thumb(http, plant.species.split()[0])
-
-            image_candidates = [u for u in [ref_image_url, wiki_img] if u]
             if not species_page_url:
                 species_page_url = wiki_page
 
+            candidates = [u for u in [ref_image_url, wiki_img] if u]
+
+            # Find first URL that actually returns an image
             local_ref_url = None
-            for candidate in image_candidates:
+            for candidate in candidates:
                 try:
+                    check = http.head(candidate, headers=headers)
+                    if check.status_code == 200 and "image" in check.headers.get("content-type", ""):
+                        local_ref_url = candidate
+                        break
+                    # HEAD not supported — try GET with small timeout
                     img_resp = http.get(candidate, headers=headers)
-                    if img_resp.status_code == 200:
+                    if img_resp.status_code == 200 and len(img_resp.content) > 1000:
                         content_type = img_resp.headers.get("content-type", "image/jpeg")
                         ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
                         local_ref_url = _save_bytes(img_resp.content, ext)
