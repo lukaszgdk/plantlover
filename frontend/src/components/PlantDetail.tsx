@@ -70,23 +70,7 @@ export function PlantDetail() {
     setFetchingInfo(true);
     setCareMsg(null);
     try {
-      const tryFetch = async (query: string) => {
-        const r = await fetch(
-          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query.replace(/ /g, "_"))}`,
-          { headers: { "User-Agent": "PlantLover/1.0" } }
-        );
-        if (!r.ok) return null;
-        return r.json();
-      };
-      const w = (await tryFetch(plant.species)) ?? (await tryFetch(plant.species.split(" ")[0]));
-      if (!w) throw new Error("Nie znaleziono gatunku w Wikipedii");
-      const info = JSON.stringify({
-        source: "wikipedia",
-        title: w.title,
-        description: w.extract,
-        wikipedia_url: w.content_urls?.desktop?.page,
-      });
-      const updated = await api.patch(plant.id, { plant_info: info } as never);
+      const updated = await api.fetchInfo(plant.id);
       setPlant(updated);
       setCareMsg("✅ Informacje o roślinie pobrane!");
       setTimeout(() => setCareMsg(null), 3000);
@@ -194,15 +178,38 @@ export function PlantDetail() {
       {info && (
         <div className="plant-info-card">
           <div className="plant-info-header">
-            <h3>📋 {info.title ?? "Informacje o gatunku"}</h3>
-            <button className="btn-wiki-fetch" onClick={handleFetchInfo} disabled={fetchingInfo}>
+            <div>
+              <h3>{plant.species}</h3>
+              {info.common_names?.length > 0 && (
+                <p className="plant-info-common-names">{info.common_names.join(" · ")}</p>
+              )}
+            </div>
+            <button className="btn-wiki-fetch" onClick={handleFetchInfo} disabled={fetchingInfo} title="Odśwież dane">
               {fetchingInfo ? "…" : "🔄"}
             </button>
           </div>
-          {info.description && <p className="plant-info-description">{info.description}</p>}
+
+          <div className="plant-info-taxonomy">
+            {info.kingdom && <span className="tax-chip">{info.kingdom}</span>}
+            {info.order   && <span className="tax-chip">{info.order}</span>}
+            {info.family  && <span className="tax-chip tax-chip--family">{info.family}</span>}
+            {info.genus   && <span className="tax-chip tax-chip--genus"><em>{info.genus}</em></span>}
+          </div>
+
+          {info.native_regions?.length > 0 && (
+            <div className="plant-info-section">
+              <span className="plant-info-label">🌍 Pochodzi z</span>
+              <span className="plant-info-value">{info.native_regions.join(", ")}</span>
+            </div>
+          )}
+
+          {info.description && (
+            <p className="plant-info-description">{info.description}</p>
+          )}
+
           {info.wikipedia_url && (
             <a href={info.wikipedia_url} target="_blank" rel="noopener noreferrer" className="plant-info-wiki-link">
-              🔗 Wikipedia
+              🔗 Więcej na Wikipedii →
             </a>
           )}
         </div>

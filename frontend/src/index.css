@@ -484,16 +484,39 @@ dd { font-size: 0.95rem; }
 .btn-wiki-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .plant-info-card {
-  margin-top: 2rem; padding: 1.25rem;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  margin-top: 2rem; padding: 1.5rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
 }
-.plant-info-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-.plant-info-header h3 { margin: 0; font-size: 1rem; }
-.plant-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; margin: 0; }
-.plant-info-row { display: contents; }
-.plant-info-row dt { font-size: 0.82rem; color: var(--text-muted); font-weight: 500; }
-.plant-info-row dd { font-size: 0.88rem; margin: 0; }
-.plant-info-description { margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; border-top: 1px solid var(--border); padding-top: 0.75rem; }
-.plant-info-wiki-link { display: inline-block; margin-top: 0.75rem; font-size: 0.85rem; color: var(--primary); text-decoration: none; }
-.plant-info-wiki-link:hover { text-decoration: underline; }
-@media (max-width: 480px) { .plant-info-grid { grid-template-columns: 1fr; } }
+.plant-info-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem;
+}
+.plant-info-header h3 { margin: 0; font-size: 1.05rem; font-style: italic; color: var(--text); }
+.plant-info-common-names { margin: 0.2rem 0 0; font-size: 0.88rem; color: var(--text-muted); font-style: normal; }
+
+.plant-info-taxonomy {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem;
+}
+.tax-chip {
+  font-size: 0.75rem; padding: 0.2rem 0.6rem;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 20px;
+  color: var(--text-muted);
+}
+.tax-chip--family { color: var(--primary); border-color: var(--primary); }
+.tax-chip--genus  { color: var(--text); border-color: var(--border); font-style: italic; }
+
+.plant-info-section {
+  display: flex; gap: 0.75rem; align-items: baseline;
+  padding: 0.5rem 0; border-top: 1px solid var(--border); font-size: 0.88rem;
+}
+.plant-info-label { flex-shrink: 0; color: var(--text-muted); font-weight: 500; }
+.plant-info-value { color: var(--text); }
+
+.plant-info-description {
+  margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);
+  font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;
+}
+.plant-info-wiki-link {
+  display: inline-block; margin-top: 0.85rem; font-size: 0.82rem;
+  color: var(--primary); text-decoration: none; opacity: 0.85;
+}
+.plant-info-wiki-link:hover { opacity: 1; text-decoration: underline; }

@@ -277,41 +277,73 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
 
     plant = get_plant_or_404(plant_id, db)
     if not plant.species:
-        raise HTTPException(status_code=400, detail="Plant has no species set")
+        raise HTTPException(status_code=400, detail="Roślina nie ma ustawionego gatunku")
 
-    headers = {"User-Agent": "PlantLover/1.0 (homelab plant tracker)"}
-    species_query = plant.species.replace(" ", "_")
+    ua = {"User-Agent": "PlantLover/1.0 (homelab; contact: veonlight@gmail.com)"}
+    species = plant.species
+    info: dict = {}
 
-    try:
-        with httpx.Client(timeout=15, follow_redirects=True) as http:
-            resp = http.get(
-                f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(species_query)}",
-                headers=headers,
-            )
-            if resp.status_code == 404:
-                # Try just the genus
-                genus = plant.species.split()[0]
-                resp = http.get(
-                    f"https://en.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(genus)}",
-                    headers=headers,
-                )
-            if resp.status_code == 404:
-                raise HTTPException(status_code=404, detail="Nie znaleziono gatunku w Wikipedii")
-            resp.raise_for_status()
-            w = resp.json()
-    except HTTPException:
-        raise
-    except httpx.RequestError as exc:
-        raise HTTPException(status_code=503, detail=f"Wikipedia niedostępna: {exc}")
+    with httpx.Client(timeout=15, follow_redirects=True) as http:
 
-    info = {
-        "source": "wikipedia",
-        "title": w.get("title"),
-        "description": w.get("extract"),
-        "wikipedia_url": w.get("content_urls", {}).get("desktop", {}).get("page"),
-    }
+        # 1. GBIF — taksonomia + zasięg geograficzny (bez klucza)
+        try:
+            r = http.get("https://api.gbif.org/v1/species/match",
+                         params={"name": species, "verbose": "false"}, headers=ua)
+            g = r.json()
+            if g.get("matchType") != "NONE":
+                info["kingdom"] = g.get("kingdom")
+                info["family"] = g.get("family")
+                info["genus"] = g.get("genus")
+                info["order"] = g.get("order")
+                gbif_key = g.get("usageKey")
+                if gbif_key:
+                    dist_r = http.get(f"https://api.gbif.org/v1/species/{gbif_key}/distributions",
+                                      params={"limit": 30}, headers=ua)
+                    localities = [
+                        d["locality"] for d in dist_r.json().get("results", [])
+                        if d.get("locality") and d.get("establishmentMeans") in (None, "", "NATIVE")
+                    ]
+                    if localities:
+                        info["native_regions"] = localities
+        except Exception:
+            pass
+
+        # 2. Wikidata — nazwy zwyczajowe po angielsku (bez klucza)
+        try:
+            search_r = http.get("https://www.wikidata.org/w/api.php", headers=ua, params={
+                "action": "wbsearchentities", "search": species,
+                "language": "en", "type": "item", "format": "json", "limit": 1,
+            })
+            results = search_r.json().get("search", [])
+            if results:
+                qid = results[0]["id"]
+                sparql = f'SELECT ?name WHERE {{ wd:{qid} wdt:P1843 ?name. FILTER(LANG(?name)="en") }}'
+                wq = http.get("https://query.wikidata.org/sparql",
+                              params={"query": sparql}, headers={**ua, "Accept": "application/json"})
+                names = [b["name"]["value"] for b in wq.json()["results"]["bindings"]]
+                if names:
+                    info["common_names"] = names
+        except Exception:
+            pass
+
+        # 3. Wikipedia — opis tekstowy (bez klucza)
+        try:
+            slug = urllib.parse.quote(species.replace(" ", "_"))
+            wp = http.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{slug}", headers=ua)
+            if wp.status_code == 404:
+                slug = urllib.parse.quote(species.split()[0])
+                wp = http.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{slug}", headers=ua)
+            if wp.status_code == 200:
+                w = wp.json()
+                info["description"] = w.get("extract")
+                info["wikipedia_url"] = w.get("content_urls", {}).get("desktop", {}).get("page")
+        except Exception:
+            pass
+
+    if not info:
+        raise HTTPException(status_code=404, detail="Nie znaleziono informacji o tym gatunku")
+
     info = {k: v for k, v in info.items() if v}
-
     plant.plant_info = json_mod.dumps(info, ensure_ascii=False)
     db.commit()
     db.refresh(plant)
