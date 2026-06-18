@@ -482,3 +482,16 @@ dd { font-size: 0.95rem; }
 }
 .btn-wiki-fetch:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .btn-wiki-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.plant-info-card {
+  margin-top: 2rem; padding: 1.25rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+}
+.plant-info-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.plant-info-header h3 { margin: 0; font-size: 1rem; }
+.plant-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; margin: 0; }
+.plant-info-row { display: contents; }
+.plant-info-row dt { font-size: 0.82rem; color: var(--text-muted); font-weight: 500; }
+.plant-info-row dd { font-size: 0.88rem; margin: 0; }
+.plant-info-description { margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+@media (max-width: 480px) { .plant-info-grid { grid-template-columns: 1fr; } }

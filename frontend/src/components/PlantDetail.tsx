@@ -14,7 +14,7 @@ export function PlantDetail() {
   const [careMsg, setCareMsg] = useState<string | null>(null);
   const [watering, setWatering] = useState(false);
   const [savingRoom, setSavingRoom] = useState(false);
-  const [fetchingWiki, setFetchingWiki] = useState(false);
+  const [fetchingInfo, setFetchingInfo] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -70,26 +70,25 @@ export function PlantDetail() {
     setPlant({ ...plant, species: result.species, common_name: result.common_name });
   }
 
-  async function handleFetchWiki() {
+  async function handleFetchInfo() {
     if (!plant) return;
-    setFetchingWiki(true);
+    setFetchingInfo(true);
     setCareMsg(null);
-    const prevPhoto = plant.photo_url;
     try {
-      const updated = await api.fetchWiki(plant.id);
+      const updated = await api.fetchInfo(plant.id);
       setPlant(updated);
-      const gotPhoto = updated.photo_url !== prevPhoto;
-      const gotLink = !!updated.wiki_url;
-      if (gotPhoto && gotLink) setCareMsg("✅ Zdjęcie referencyjne i link Wikipedia pobrane!");
-      else if (gotPhoto) setCareMsg("✅ Zdjęcie referencyjne pobrane!");
-      else if (gotLink) setCareMsg("⚠️ Link Wikipedia zapisany, ale nie znaleziono zdjęcia dla tego gatunku.");
-      else setCareMsg("⚠️ Nie znaleziono zdjęcia ani linku dla tego gatunku.");
-      setTimeout(() => setCareMsg(null), 5000);
+      setCareMsg("✅ Informacje o roślinie pobrane!");
+      setTimeout(() => setCareMsg(null), 3000);
     } catch (e) {
       setCareMsg(`❌ ${(e as Error).message}`);
     } finally {
-      setFetchingWiki(false);
+      setFetchingInfo(false);
     }
+  }
+
+  function parsePlantInfo(raw: string | null) {
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
   }
 
   if (loading) return <p className="status">Loading…</p>;
@@ -150,21 +149,14 @@ export function PlantDetail() {
                       {" "}({plant.common_name})
                     </span>
                   )}
-                  <span className="wiki-actions">
-                    {plant.wiki_url && (
-                      <a href={plant.wiki_url} target="_blank" rel="noreferrer" className="wiki-link">
-                        📖 Wikipedia
-                      </a>
-                    )}
-                    <button
-                      className="btn-wiki-fetch"
-                      onClick={handleFetchWiki}
-                      disabled={fetchingWiki}
-                      title="Pobierz zdjęcie referencyjne z Wikimedia"
-                    >
-                      {fetchingWiki ? "…" : plant.wiki_url ? "🔄" : "🔄 Pobierz z Wikimedia"}
-                    </button>
-                  </span>
+                  <button
+                    className="btn-wiki-fetch"
+                    onClick={handleFetchInfo}
+                    disabled={fetchingInfo}
+                    title="Pobierz informacje o roślinie z Perenual"
+                  >
+                    {fetchingInfo ? "…" : plant.plant_info ? "🔄" : "🔍 Pobierz info"}
+                  </button>
                 </dd>
               </>
             )}
@@ -236,6 +228,45 @@ export function PlantDetail() {
           </div>
         </div>
       </div>
+
+      {(() => {
+        const info = parsePlantInfo(plant.plant_info);
+        if (!info) return null;
+        const rows: { label: string; value: string }[] = [];
+        if (info.origin?.length) rows.push({ label: "🌍 Pochodzenie", value: info.origin.join(", ") });
+        if (info.cycle) rows.push({ label: "🔄 Cykl życia", value: info.cycle });
+        if (info.type) rows.push({ label: "🌱 Typ", value: info.type });
+        if (info.sunlight?.length) rows.push({ label: "☀️ Nasłonecznienie", value: info.sunlight.join(", ") });
+        if (info.watering) rows.push({ label: "💧 Podlewanie", value: info.watering });
+        if (info.soil?.length) rows.push({ label: "🪨 Gleba", value: info.soil.join(", ") });
+        if (info.maintenance) rows.push({ label: "🔧 Pielęgnacja", value: info.maintenance });
+        if (info.care_level) rows.push({ label: "📊 Poziom trudności", value: info.care_level });
+        if (info.growth_rate) rows.push({ label: "📈 Tempo wzrostu", value: info.growth_rate });
+        if (info.drought_tolerant != null) rows.push({ label: "🏜️ Tolerancja suszy", value: info.drought_tolerant ? "Tak" : "Nie" });
+        if (info.indoor != null) rows.push({ label: "🏠 Roślina doniczkowa", value: info.indoor ? "Tak" : "Nie" });
+        return (
+          <div className="plant-info-card">
+            <div className="plant-info-header">
+              <h3>📋 Informacje o gatunku</h3>
+              <button className="btn-wiki-fetch" onClick={handleFetchInfo} disabled={fetchingInfo}>
+                {fetchingInfo ? "…" : "🔄"}
+              </button>
+            </div>
+            <dl className="plant-info-grid">
+              {rows.map(({ label, value }) => (
+                <div key={label} className="plant-info-row">
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            {info.description && (
+              <p className="plant-info-description">{info.description}</p>
+            )}
+          </div>
+        );
+      })()}
+
     </div>
   );
 }

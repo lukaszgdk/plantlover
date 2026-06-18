@@ -270,117 +270,67 @@ def get_care_log(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/{plant_id}/fetch-wiki", response_model=Plant)
-def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
+@router.post("/{plant_id}/fetch-info", response_model=Plant)
+def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
+    import json as json_mod
     plant = get_plant_or_404(plant_id, db)
     if not plant.species:
         raise HTTPException(status_code=400, detail="Plant has no species set")
 
-    headers = {"User-Agent": "PlantLover/1.0 (plant care app)"}
     perenual_key = os.environ.get("PERENUAL_API_KEY")
-    ref_image_url: str | None = None
-    species_page_url: str | None = None
+    if not perenual_key:
+        raise HTTPException(status_code=503, detail="Perenual API key not configured. Add it in Settings.")
 
-    def _perenual(http: httpx.Client, query: str) -> tuple[str | None, str | None]:
-        if not perenual_key:
-            return None, None
-        resp = http.get(
-            "https://perenual.com/api/species-list",
-            params={"key": perenual_key, "q": query},
-            headers=headers,
-        )
-        if not resp.is_success:
-            return None, None
-        data = resp.json().get("data", [])
-        if not data:
-            return None, None
-        img = data[0].get("default_image") or {}
-        image_url = img.get("regular_url") or img.get("medium_url") or img.get("thumbnail")
-        species_id = data[0].get("id")
-        page_url = f"https://perenual.com/plant/{species_id}" if species_id else None
-        return image_url, page_url
-
-    def _wikipedia_thumb(http: httpx.Client, query: str) -> tuple[str | None, str | None]:
-        resp = http.get(
-            "https://en.wikipedia.org/w/api.php",
-            params={
-                "action": "query", "titles": query.replace(" ", "_"),
-                "prop": "pageimages|info", "pithumbsize": 800,
-                "inprop": "url", "format": "json", "formatversion": 2,
-            },
-            headers=headers,
-        )
-        if not resp.is_success:
-            return None, None
-        for page in resp.json().get("query", {}).get("pages", []):
-            if page.get("missing"):
-                continue
-            image_url = (page.get("thumbnail") or {}).get("source")
-            page_url = page.get("fullurl")
-            if image_url:
-                return image_url, page_url
-        return None, None
-
+    headers = {"User-Agent": "PlantLover/1.0"}
     try:
-        with httpx.Client(timeout=20, follow_redirects=True) as http:
-            # 1. Perenual — best for houseplants
-            ref_image_url, species_page_url = _perenual(http, plant.species)
+        with httpx.Client(timeout=15, follow_redirects=True) as http:
+            # 1. Search for species
+            search = http.get(
+                "https://perenual.com/api/species-list",
+                params={"key": perenual_key, "q": plant.species},
+                headers=headers,
+            )
+            search.raise_for_status()
+            results = search.json().get("data", [])
+            if not results:
+                raise HTTPException(status_code=404, detail="Species not found in Perenual database")
 
-            # 2. Wikipedia thumbnail
-            if not ref_image_url:
-                ref_image_url, species_page_url = _wikipedia_thumb(http, plant.species)
+            species_id = results[0]["id"]
 
-            # 3. Retry with genus only
-            if not ref_image_url and " " in plant.species:
-                genus = plant.species.split()[0]
-                ref_image_url, species_page_url = _perenual(http, genus)
-                if not ref_image_url:
-                    ref_image_url, species_page_url = _wikipedia_thumb(http, genus)
-
-            # Collect all candidate image URLs in priority order
-            wiki_img, wiki_page = _wikipedia_thumb(http, plant.species)
-            if not wiki_img and " " in plant.species:
-                wiki_img, wiki_page = _wikipedia_thumb(http, plant.species.split()[0])
-            if not species_page_url:
-                species_page_url = wiki_page
-
-            candidates = [u for u in [ref_image_url, wiki_img] if u]
-
-            # Find first URL that actually returns an image
-            local_ref_url = None
-            for candidate in candidates:
-                try:
-                    check = http.head(candidate, headers=headers)
-                    if check.status_code == 200 and "image" in check.headers.get("content-type", ""):
-                        local_ref_url = candidate
-                        break
-                    # HEAD not supported — try GET with small timeout
-                    img_resp = http.get(candidate, headers=headers)
-                    if img_resp.status_code == 200 and len(img_resp.content) > 1000:
-                        content_type = img_resp.headers.get("content-type", "image/jpeg")
-                        ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
-                        local_ref_url = _save_bytes(img_resp.content, ext)
-                        break
-                except httpx.RequestError:
-                    continue
-
-            if not local_ref_url and not species_page_url:
-                raise HTTPException(status_code=404, detail="No image or species page found")
+            # 2. Get detailed info
+            detail = http.get(
+                f"https://perenual.com/api/species/detail/{species_id}",
+                params={"key": perenual_key},
+                headers=headers,
+            )
+            detail.raise_for_status()
+            d = detail.json()
 
     except HTTPException:
         raise
     except httpx.RequestError as exc:
-        raise HTTPException(status_code=503, detail=f"Network error: {exc}")
+        raise HTTPException(status_code=503, detail=f"Perenual unreachable: {exc}")
 
-    # Move current photo to gallery slot before overwriting
-    if plant.photo_url and not plant.user_photo_url:
-        plant.user_photo_url = plant.photo_url
+    info = {
+        "source": "perenual",
+        "perenual_id": species_id,
+        "origin": d.get("origin") or [],
+        "sunlight": d.get("sunlight") or [],
+        "watering": d.get("watering"),
+        "soil": d.get("soil") or [],
+        "maintenance": d.get("maintenance"),
+        "care_level": d.get("care_level"),
+        "growth_rate": d.get("growth_rate"),
+        "indoor": d.get("indoor"),
+        "drought_tolerant": d.get("drought_tolerant"),
+        "description": d.get("description"),
+        "cycle": d.get("cycle"),
+        "type": d.get("type"),
+    }
+    # Remove None values to keep it clean
+    info = {k: v for k, v in info.items() if v is not None and v != []}
 
-    if local_ref_url:
-        plant.photo_url = local_ref_url
-    if species_page_url:
-        plant.wiki_url = species_page_url
-
+    plant.plant_info = json_mod.dumps(info, ensure_ascii=False)
     db.commit()
     db.refresh(plant)
     return plant

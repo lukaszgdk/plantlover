@@ -27,6 +27,7 @@ class Plant(Base):
     photo_url: Mapped[str | None] = mapped_column(String(1024))
     user_photo_url: Mapped[str | None] = mapped_column(String(1024))
     wiki_url: Mapped[str | None] = mapped_column(String(1024))
+    plant_info: Mapped[str | None] = mapped_column(Text)
     watering_interval_days: Mapped[int | None] = mapped_column(Integer)
     last_watered: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_watering: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

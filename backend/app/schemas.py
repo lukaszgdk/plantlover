@@ -30,6 +30,7 @@ class PlantBase(BaseModel):
     photo_url: str | None = None
     user_photo_url: str | None = None
     wiki_url: str | None = None
+    plant_info: str | None = None
     watering_interval_days: int | None = None
     last_watered: datetime | None = None
     next_watering: datetime | None = None
