@@ -316,26 +316,27 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         if not search_resp.is_success:
             return None
         hits = search_resp.json().get("query", {}).get("search", [])
-        for hit in hits:
-            title = hit.get("title", "")
-            if not any(title.lower().endswith(ext) for ext in (".jpg", ".jpeg", ".png")):
-                continue
-            info_resp = http.get(
-                "https://commons.wikimedia.org/w/api.php",
-                params={
-                    "action": "query", "titles": title,
-                    "prop": "imageinfo", "iiprop": "url",
-                    "iiurlwidth": 800, "format": "json",
-                },
-                headers=headers,
-            )
-            if not info_resp.is_success:
-                continue
-            pages = info_resp.json().get("query", {}).get("pages", {})
-            for page in pages.values():
-                infos = page.get("imageinfo", [])
-                if infos:
-                    return infos[0].get("thumburl") or infos[0].get("url")
+        titles = [h["title"] for h in hits if h.get("title")]
+        if not titles:
+            return None
+        info_resp = http.get(
+            "https://commons.wikimedia.org/w/api.php",
+            params={
+                "action": "query",
+                "titles": "|".join(titles[:3]),
+                "prop": "imageinfo",
+                "iiprop": "url|mediatype",
+                "iiurlwidth": 800,
+                "format": "json",
+            },
+            headers=headers,
+        )
+        if not info_resp.is_success:
+            return None
+        for page in info_resp.json().get("query", {}).get("pages", {}).values():
+            for info in page.get("imageinfo", []):
+                if info.get("mediatype") == "BITMAP":
+                    return info.get("thumburl") or info.get("url")
         return None
 
     try:
