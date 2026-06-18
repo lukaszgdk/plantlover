@@ -79,17 +79,6 @@ class WaterRoomButton(CoordinatorEntity, ButtonEntity):
     def name(self) -> str:
         return f"{self._room_name} — podlej wszystkie"
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        from .sensor import _device_info
-        # Wirtualne urządzenie reprezentujące pokój
-        return DeviceInfo(
-            identifiers={(DOMAIN, f"room_{self._room_id}")},
-            name=f"{self._room_name} (pokój)",
-            manufacturer="PlantLover",
-            suggested_area=self._room_name,
-        )
-
     async def async_press(self) -> None:
         from datetime import datetime, timezone
         watered_at = datetime.now(timezone.utc).date().isoformat()
