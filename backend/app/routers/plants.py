@@ -337,22 +337,34 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
                 if not ref_image_url:
                     ref_image_url, species_page_url = _wikipedia_thumb(http, genus)
 
-            if not ref_image_url:
-                raise HTTPException(status_code=404, detail="No image found for this species")
+            # Build list of image candidates to try in order
+            wiki_img, wiki_page = _wikipedia_thumb(http, plant.species)
+            if not wiki_img and " " in plant.species:
+                wiki_img, wiki_page = _wikipedia_thumb(http, plant.species.split()[0])
 
-            # Download and save locally
-            img_resp = http.get(ref_image_url, headers=headers)
-            img_resp.raise_for_status()
-            content_type = img_resp.headers.get("content-type", "image/jpeg")
-            ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
-            local_ref_url = _save_bytes(img_resp.content, ext)
+            image_candidates = [u for u in [ref_image_url, wiki_img] if u]
+            if not species_page_url:
+                species_page_url = wiki_page
+
+            local_ref_url = None
+            for candidate in image_candidates:
+                try:
+                    img_resp = http.get(candidate, headers=headers)
+                    if img_resp.status_code == 200:
+                        content_type = img_resp.headers.get("content-type", "image/jpeg")
+                        ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
+                        local_ref_url = _save_bytes(img_resp.content, ext)
+                        break
+                except httpx.RequestError:
+                    continue
+
+            if not local_ref_url and not species_page_url:
+                raise HTTPException(status_code=404, detail="No image or species page found")
 
     except HTTPException:
         raise
     except httpx.RequestError as exc:
         raise HTTPException(status_code=503, detail=f"Network error: {exc}")
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=502, detail=f"Image download failed: {exc.response.status_code}")
 
     # Move current photo to gallery slot before overwriting
     if plant.photo_url and not plant.user_photo_url:
