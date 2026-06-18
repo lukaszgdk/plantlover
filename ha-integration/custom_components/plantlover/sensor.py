@@ -50,7 +50,13 @@ class DaysUntilWateringSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        return self._plant.get("days_until_watering")
+        next_w = self._plant.get("next_watering")
+        if not next_w:
+            return None
+        from datetime import date
+        today = date.today()
+        next_date = date.fromisoformat(next_w[:10])
+        return (next_date - today).days
 
     @property
     def device_info(self) -> DeviceInfo:
