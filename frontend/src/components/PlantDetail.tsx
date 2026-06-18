@@ -77,7 +77,7 @@ export function PlantDetail() {
     try {
       const updated = await api.fetchWiki(plant.id);
       setPlant(updated);
-      setCareMsg("✅ Zdjęcie i link z Wikipedii pobrane!");
+      setCareMsg("✅ Zdjęcie referencyjne i link GBIF pobrane!");
       setTimeout(() => setCareMsg(null), 4000);
     } catch (e) {
       setCareMsg(`❌ ${(e as Error).message}`);
@@ -147,16 +147,16 @@ export function PlantDetail() {
                   <span className="wiki-actions">
                     {plant.wiki_url && (
                       <a href={plant.wiki_url} target="_blank" rel="noreferrer" className="wiki-link">
-                        📖 Wikipedia
+                        🌍 GBIF
                       </a>
                     )}
                     <button
                       className="btn-wiki-fetch"
                       onClick={handleFetchWiki}
                       disabled={fetchingWiki}
-                      title="Pobierz zdjęcie referencyjne i link z Wikipedii"
+                      title="Pobierz zdjęcie referencyjne i link z GBIF"
                     >
-                      {fetchingWiki ? "…" : plant.wiki_url ? "🔄" : "🔄 Pobierz z Wikipedii"}
+                      {fetchingWiki ? "…" : plant.wiki_url ? "🔄" : "🔄 Pobierz z GBIF"}
                     </button>
                   </span>
                 </dd>

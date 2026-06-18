@@ -270,33 +270,47 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     if not plant.species:
         raise HTTPException(status_code=400, detail="Plant has no species set")
 
-    species_slug = plant.species.replace(" ", "_")
+    headers = {"User-Agent": "PlantLover/1.0 (plant care app)"}
     try:
-        with httpx.Client(timeout=10) as http:
-            resp = http.get(
-                f"https://en.wikipedia.org/api/rest_v1/page/summary/{species_slug}",
-                headers={"User-Agent": "PlantLover/1.0 (plant care app)"},
+        with httpx.Client(timeout=15) as http:
+            # 1. Match species name to GBIF usageKey
+            match_resp = http.get(
+                "https://api.gbif.org/v1/species/match",
+                params={"name": plant.species, "verbose": "false"},
+                headers=headers,
             )
+            match_resp.raise_for_status()
+            match_data = match_resp.json()
+            usage_key = match_data.get("usageKey")
+
+            if not usage_key:
+                raise HTTPException(status_code=404, detail="Species not found in GBIF")
+
+            # 2. Fetch reference image from GBIF species media
+            media_resp = http.get(
+                f"https://api.gbif.org/v1/species/{usage_key}/media",
+                params={"limit": 3},
+                headers=headers,
+            )
+            media_resp.raise_for_status()
+            media_results = media_resp.json().get("results", [])
+            ref_image = next(
+                (m["identifier"] for m in media_results if m.get("type") == "StillImage" and m.get("identifier")),
+                None,
+            )
+
     except httpx.RequestError as exc:
-        raise HTTPException(status_code=503, detail=f"Wikipedia unreachable: {exc}")
+        raise HTTPException(status_code=503, detail=f"GBIF unreachable: {exc}")
 
-    if resp.status_code == 404:
-        raise HTTPException(status_code=404, detail="Species not found on Wikipedia")
-    if not resp.is_success:
-        raise HTTPException(status_code=502, detail=f"Wikipedia returned {resp.status_code}")
+    gbif_url = f"https://www.gbif.org/species/{usage_key}"
 
-    data = resp.json()
-    wiki_image = (data.get("thumbnail") or {}).get("source")
-    wiki_url = (data.get("content_urls") or {}).get("desktop", {}).get("page")
-
-    # Move current user-uploaded photo to user_photo_url gallery slot
+    # Move current photo to gallery slot before overwriting
     if plant.photo_url and not plant.user_photo_url:
         plant.user_photo_url = plant.photo_url
 
-    if wiki_image:
-        plant.photo_url = wiki_image
-    if wiki_url:
-        plant.wiki_url = wiki_url
+    if ref_image:
+        plant.photo_url = ref_image
+    plant.wiki_url = gbif_url
 
     db.commit()
     db.refresh(plant)
