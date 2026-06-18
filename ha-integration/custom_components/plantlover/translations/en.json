@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to PlantLover",
+        "data": {
+          "url": "PlantLover URL (e.g. http://10.10.20.70:8000)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to PlantLover. Check the URL and that the app is running.",
+      "unknown": "Unknown error."
+    }
+  }
+}

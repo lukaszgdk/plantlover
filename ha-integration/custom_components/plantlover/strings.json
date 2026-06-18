@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Połącz z PlantLover",
+        "data": {
+          "url": "URL aplikacji PlantLover (np. http://10.10.20.70:8000)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie można połączyć się z PlantLover. Sprawdź URL i czy aplikacja działa.",
+      "unknown": "Nieznany błąd."
+    }
+  }
+}
