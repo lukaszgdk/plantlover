@@ -135,7 +135,7 @@ def ha_dashboard(db: Session = Depends(get_db)):
     for room, room_plants in sorted(by_room.items(), key=lambda kv: kv[0].name if kv[0] else ""):
         room_name = room.name if room else "Bez pokoju"
         room_slug = slugify(room_name)
-        room_button_slug = f"room_{room_slug}_water_all"
+        room_button_slug = f"{room_slug}_podlej_wszystkie"
 
         # Licznik duplikatów w obrębie pokoju
         name_seen: dict = {}
