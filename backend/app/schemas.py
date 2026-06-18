@@ -104,6 +104,7 @@ class ScheduledPlant(BaseModel):
 class CareLogCreate(BaseModel):
     action: str
     notes: str | None = None
+    watered_at: date | None = None
 
 
 class CareLogEntry(BaseModel):
