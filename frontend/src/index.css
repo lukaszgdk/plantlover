@@ -467,3 +467,18 @@ dd { font-size: 0.95rem; }
   border: 1px solid var(--border); border-radius: 6px;
   padding: 0.4rem 0.6rem; font-size: 0.9rem; background: var(--surface);
 }
+
+.detail-photo-col { display: flex; flex-direction: column; gap: 0.75rem; }
+.detail-gallery { display: flex; flex-direction: column; gap: 0.35rem; }
+.gallery-label { font-size: 0.75rem; color: var(--text-muted); margin: 0; }
+.gallery-thumb { width: 100%; max-width: 200px; border-radius: 8px; object-fit: cover; aspect-ratio: 1; border: 1px solid var(--border); }
+.wiki-actions { display: inline-flex; align-items: center; gap: 0.5rem; margin-left: 0.4rem; }
+.wiki-link { font-size: 0.85rem; color: var(--primary); text-decoration: none; }
+.wiki-link:hover { text-decoration: underline; }
+.btn-wiki-fetch {
+  background: none; border: 1px solid var(--border); border-radius: 4px;
+  cursor: pointer; font-size: 0.8rem; padding: 0.15rem 0.4rem;
+  color: var(--text-muted); white-space: nowrap;
+}
+.btn-wiki-fetch:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.btn-wiki-fetch:disabled { opacity: 0.5; cursor: not-allowed; }

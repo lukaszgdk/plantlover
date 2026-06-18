@@ -72,6 +72,8 @@ export const api = {
 
   delete: (id: string) => request<void>(`${BASE}/${id}`, { method: "DELETE" }),
 
+  fetchWiki: (id: string) => request<Plant>(`${BASE}/${id}/fetch-wiki`, { method: "POST" }),
+
   identifyImage: (id: string, file: File, organ = "auto"): Promise<IdentifyResponse> => {
     const form = new FormData();
     form.append("image", file);

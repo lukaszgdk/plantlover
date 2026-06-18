@@ -14,6 +14,7 @@ export function PlantDetail() {
   const [careMsg, setCareMsg] = useState<string | null>(null);
   const [watering, setWatering] = useState(false);
   const [savingRoom, setSavingRoom] = useState(false);
+  const [fetchingWiki, setFetchingWiki] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -69,6 +70,22 @@ export function PlantDetail() {
     setPlant({ ...plant, species: result.species, common_name: result.common_name });
   }
 
+  async function handleFetchWiki() {
+    if (!plant) return;
+    setFetchingWiki(true);
+    setCareMsg(null);
+    try {
+      const updated = await api.fetchWiki(plant.id);
+      setPlant(updated);
+      setCareMsg("✅ Zdjęcie i link z Wikipedii pobrane!");
+      setTimeout(() => setCareMsg(null), 4000);
+    } catch (e) {
+      setCareMsg(`❌ ${(e as Error).message}`);
+    } finally {
+      setFetchingWiki(false);
+    }
+  }
+
   if (loading) return <p className="status">Loading…</p>;
   if (error) return <p className="status error">{error}</p>;
   if (!plant) return null;
@@ -98,11 +115,20 @@ export function PlantDetail() {
       </div>
 
       <div className="detail-body">
-        <div className="detail-photo">
-          {plant.photo_url ? (
-            <img src={plant.photo_url} alt={plant.name} />
-          ) : (
-            <span className="photo-placeholder large">🌿</span>
+        <div className="detail-photo-col">
+          <div className="detail-photo">
+            {plant.photo_url ? (
+              <img src={plant.photo_url} alt={plant.name} />
+            ) : (
+              <span className="photo-placeholder large">🌿</span>
+            )}
+          </div>
+
+          {plant.user_photo_url && (
+            <div className="detail-gallery">
+              <p className="gallery-label">📷 Twoje zdjęcie</p>
+              <img src={plant.user_photo_url} alt="Zdjęcie użytkownika" className="gallery-thumb" />
+            </div>
           )}
         </div>
 
@@ -112,12 +138,27 @@ export function PlantDetail() {
               <>
                 <dt>Species</dt>
                 <dd>
-                  {plant.species}
+                  <span>{plant.species}</span>
                   {plant.common_name && (
                     <span style={{ color: "var(--gray)", fontStyle: "italic" }}>
                       {" "}({plant.common_name})
                     </span>
                   )}
+                  <span className="wiki-actions">
+                    {plant.wiki_url && (
+                      <a href={plant.wiki_url} target="_blank" rel="noreferrer" className="wiki-link">
+                        📖 Wikipedia
+                      </a>
+                    )}
+                    <button
+                      className="btn-wiki-fetch"
+                      onClick={handleFetchWiki}
+                      disabled={fetchingWiki}
+                      title="Pobierz zdjęcie referencyjne i link z Wikipedii"
+                    >
+                      {fetchingWiki ? "…" : plant.wiki_url ? "🔄" : "🔄 Pobierz z Wikipedii"}
+                    </button>
+                  </span>
                 </dd>
               </>
             )}

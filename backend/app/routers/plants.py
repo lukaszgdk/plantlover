@@ -264,3 +264,42 @@ def get_care_log(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/{plant_id}/fetch-wiki", response_model=Plant)
+def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
+    plant = get_plant_or_404(plant_id, db)
+    if not plant.species:
+        raise HTTPException(status_code=400, detail="Plant has no species set")
+
+    species_slug = plant.species.replace(" ", "_")
+    try:
+        with httpx.Client(timeout=10) as http:
+            resp = http.get(
+                f"https://en.wikipedia.org/api/rest_v1/page/summary/{species_slug}",
+                headers={"User-Agent": "PlantLover/1.0 (plant care app)"},
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=503, detail=f"Wikipedia unreachable: {exc}")
+
+    if resp.status_code == 404:
+        raise HTTPException(status_code=404, detail="Species not found on Wikipedia")
+    if not resp.is_success:
+        raise HTTPException(status_code=502, detail=f"Wikipedia returned {resp.status_code}")
+
+    data = resp.json()
+    wiki_image = (data.get("thumbnail") or {}).get("source")
+    wiki_url = (data.get("content_urls") or {}).get("desktop", {}).get("page")
+
+    # Move current user-uploaded photo to user_photo_url gallery slot
+    if plant.photo_url and not plant.user_photo_url:
+        plant.user_photo_url = plant.photo_url
+
+    if wiki_image:
+        plant.photo_url = wiki_image
+    if wiki_url:
+        plant.wiki_url = wiki_url
+
+    db.commit()
+    db.refresh(plant)
+    return plant
+
+
