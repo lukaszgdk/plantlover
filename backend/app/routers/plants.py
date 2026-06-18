@@ -210,9 +210,14 @@ def log_care_event(
     now = datetime.now(tz=timezone.utc)
 
     if payload.action == "watered":
-        plant.last_watered = now
+        watered_at = (
+            datetime(payload.watered_at.year, payload.watered_at.month, payload.watered_at.day,
+                     tzinfo=timezone.utc)
+            if payload.watered_at else now
+        )
+        plant.last_watered = watered_at
         plant.next_watering = (
-            now + timedelta(days=plant.watering_interval_days)
+            watered_at + timedelta(days=plant.watering_interval_days)
             if plant.watering_interval_days
             else None
         )
