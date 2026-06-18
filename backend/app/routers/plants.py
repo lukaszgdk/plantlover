@@ -151,19 +151,7 @@ def ha_dashboard(db: Session = Depends(get_db)):
           method: state
           numeric: true
 
-      - type: custom:auto-entities
-        card:
-          type: glance
-          title: "🌱 Wszystkie rośliny"
-          show_name: true
-          show_state: true
-          show_icon: true
-        filter:
-          include:
-            - entity_id: "sensor.*_dni_do_podlania"
-        sort:
-          method: state
-          numeric: true"""
+"""
 
     # Widoki per pokój
     room_views = []
