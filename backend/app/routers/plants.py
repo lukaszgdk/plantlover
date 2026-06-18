@@ -277,51 +277,44 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Plant has no species set")
 
     headers = {"User-Agent": "PlantLover/1.0 (plant care app)"}
+    ref_image_url: str | None = None
+    species_page_url: str | None = None
+
     try:
-        with httpx.Client(timeout=15) as http:
-            # 1. Match species name to GBIF usageKey
-            match_resp = http.get(
-                "https://api.gbif.org/v1/species/match",
-                params={"name": plant.species, "verbose": "false"},
+        with httpx.Client(timeout=15, follow_redirects=True) as http:
+            # iNaturalist taxa search — reliable photos, no auth needed
+            resp = http.get(
+                "https://api.inaturalist.org/v1/taxa",
+                params={"q": plant.species, "per_page": 1, "rank": "species"},
                 headers=headers,
             )
-            match_resp.raise_for_status()
-            match_data = match_resp.json()
-            usage_key = match_data.get("usageKey")
-
-            if not usage_key:
-                raise HTTPException(status_code=404, detail="Species not found in GBIF")
-
-            # 2. Fetch reference image from GBIF species media
-            media_resp = http.get(
-                f"https://api.gbif.org/v1/species/{usage_key}/media",
-                params={"limit": 3},
-                headers=headers,
-            )
-            media_resp.raise_for_status()
-            media_results = media_resp.json().get("results", [])
-            ref_image = next(
-                (m["identifier"] for m in media_results if m.get("type") == "StillImage" and m.get("identifier")),
-                None,
-            )
-
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+            if results:
+                taxon = results[0]
+                photo = taxon.get("default_photo") or {}
+                ref_image_url = photo.get("medium_url") or photo.get("url")
+                taxon_id = taxon.get("id")
+                if taxon_id:
+                    species_page_url = f"https://www.inaturalist.org/taxa/{taxon_id}"
     except httpx.RequestError as exc:
-        raise HTTPException(status_code=503, detail=f"GBIF unreachable: {exc}")
+        raise HTTPException(status_code=503, detail=f"iNaturalist unreachable: {exc}")
 
-    gbif_url = f"https://www.gbif.org/species/{usage_key}"
+    if not results:
+        raise HTTPException(status_code=404, detail="Species not found in iNaturalist")
 
-    # Download reference image and store locally so it's always accessible
+    # Download reference image locally so it's always accessible
     local_ref_url = None
-    if ref_image:
+    if ref_image_url:
         try:
             with httpx.Client(timeout=20, follow_redirects=True) as http:
-                img_resp = http.get(ref_image, headers=headers)
+                img_resp = http.get(ref_image_url, headers=headers)
                 img_resp.raise_for_status()
             content_type = img_resp.headers.get("content-type", "image/jpeg")
             ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
             local_ref_url = _save_bytes(img_resp.content, ext)
         except Exception:
-            pass  # If download fails, skip image but still save GBIF link
+            pass
 
     # Move current photo to gallery slot before overwriting
     if plant.photo_url and not plant.user_photo_url:
@@ -329,7 +322,8 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
 
     if local_ref_url:
         plant.photo_url = local_ref_url
-    plant.wiki_url = gbif_url
+    if species_page_url:
+        plant.wiki_url = species_page_url
 
     db.commit()
     db.refresh(plant)
