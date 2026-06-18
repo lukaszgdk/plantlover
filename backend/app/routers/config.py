@@ -33,8 +33,6 @@ def _apply_env(cfg: AppConfig) -> None:
     Discord bot service."""
     if cfg.plantnet_api_key:
         os.environ["PLANTNET_API_KEY"] = cfg.plantnet_api_key
-    if cfg.perenual_api_key:
-        os.environ["PERENUAL_API_KEY"] = cfg.perenual_api_key
     if cfg.discord_bot_token:
         os.environ["DISCORD_BOT_TOKEN"] = cfg.discord_bot_token
     if cfg.discord_channel_id:
@@ -59,7 +57,6 @@ def get_config():
     return AppConfigPublic(
         setup_completed=cfg.setup_completed,
         plantnet_api_key_set=bool(cfg.plantnet_api_key or os.environ.get("PLANTNET_API_KEY")),
-        perenual_api_key_set=bool(cfg.perenual_api_key or os.environ.get("PERENUAL_API_KEY")),
         discord_bot_token_set=bool(cfg.discord_bot_token or os.environ.get("DISCORD_BOT_TOKEN")),
         discord_channel_id=cfg.discord_channel_id or os.environ.get("DISCORD_CHANNEL_ID"),
         reminder_times=cfg.reminder_times,
@@ -73,8 +70,6 @@ def save_config(payload: AppConfig):
     # Only overwrite non-None values so partial updates don't wipe fields
     if payload.plantnet_api_key is not None:
         cfg.plantnet_api_key = payload.plantnet_api_key or None
-    if payload.perenual_api_key is not None:
-        cfg.perenual_api_key = payload.perenual_api_key or None
     if payload.discord_bot_token is not None:
         cfg.discord_bot_token = payload.discord_bot_token or None
     if payload.discord_channel_id is not None:

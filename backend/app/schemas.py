@@ -95,7 +95,6 @@ class SpeciesCare(BaseModel):
 class AppConfig(BaseModel):
     setup_completed: bool = False
     plantnet_api_key: str | None = None
-    perenual_api_key: str | None = None
     discord_bot_token: str | None = None
     discord_channel_id: str | None = None
     reminder_times: list[str] = ["08:00", "15:00", "20:00"]
@@ -105,7 +104,6 @@ class AppConfigPublic(BaseModel):
     """Config without sensitive values (masked)."""
     setup_completed: bool
     plantnet_api_key_set: bool
-    perenual_api_key_set: bool
     discord_bot_token_set: bool
     discord_channel_id: str | None
     reminder_times: list[str]
