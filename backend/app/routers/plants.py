@@ -43,6 +43,12 @@ def _save_upload(file: UploadFile, content: bytes) -> str:
     return f"/uploads/{filename}"
 
 
+def _save_bytes(content: bytes, ext: str = ".jpg") -> str:
+    filename = f"{uuid.uuid4()}{ext}"
+    (UPLOADS_DIR / filename).write_bytes(content)
+    return f"/uploads/{filename}"
+
+
 def _call_plantnet(image_bytes: list[bytes], filenames: list[str]) -> dict:
     api_key = os.environ.get("PLANTNET_API_KEY")
     if not api_key:
@@ -304,12 +310,25 @@ def fetch_wiki(plant_id: uuid.UUID, db: Session = Depends(get_db)):
 
     gbif_url = f"https://www.gbif.org/species/{usage_key}"
 
+    # Download reference image and store locally so it's always accessible
+    local_ref_url = None
+    if ref_image:
+        try:
+            with httpx.Client(timeout=20, follow_redirects=True) as http:
+                img_resp = http.get(ref_image, headers=headers)
+                img_resp.raise_for_status()
+            content_type = img_resp.headers.get("content-type", "image/jpeg")
+            ext = ".jpg" if "jpeg" in content_type else "." + content_type.split("/")[-1].split(";")[0]
+            local_ref_url = _save_bytes(img_resp.content, ext)
+        except Exception:
+            pass  # If download fails, skip image but still save GBIF link
+
     # Move current photo to gallery slot before overwriting
     if plant.photo_url and not plant.user_photo_url:
         plant.user_photo_url = plant.photo_url
 
-    if ref_image:
-        plant.photo_url = ref_image
+    if local_ref_url:
+        plant.photo_url = local_ref_url
     plant.wiki_url = gbif_url
 
     db.commit()
