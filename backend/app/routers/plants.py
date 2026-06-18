@@ -109,6 +109,80 @@ def list_plants(db: Session = Depends(get_db)):
     return db.query(PlantModel).order_by(PlantModel.created_at.desc()).all()
 
 
+@router.get("/ha-dashboard")
+def ha_dashboard(db: Session = Depends(get_db)):
+    import unicodedata, re
+    from fastapi.responses import PlainTextResponse
+
+    def slugify(text: str) -> str:
+        text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+        text = text.lower()
+        text = re.sub(r"[^\w]+", "_", text)
+        return text.strip("_")
+
+    plants = db.query(PlantModel).order_by(PlantModel.name).all()
+
+    plant_cards = []
+    for p in plants:
+        slug = slugify(p.name)
+        card = f"""\
+      - type: entities
+        title: "{p.name}"
+        icon: mdi:flower
+        entities:
+          - entity: sensor.{slug}_dni_do_podlania
+            name: Dni do podlania
+          - entity: sensor.{slug}_ostatnie_podlanie
+            name: Ostatnie podlanie
+          - type: button
+            entity: button.{slug}_podlej
+            name: Podlej
+            action_name: 💧 Podlej"""
+        plant_cards.append(card)
+
+    yaml = f"""\
+title: 🌿 PlantLover
+views:
+  - title: Rośliny
+    path: plantlover
+    icon: mdi:flower
+    cards:
+
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: "💧 Wymagają podlania"
+          icon: mdi:water-alert
+          show_header_toggle: false
+        filter:
+          include:
+            - entity_id: "sensor.*_dni_do_podlania"
+              state: "0"
+            - entity_id: "sensor.*_dni_do_podlania"
+              state: "< 0"
+        sort:
+          method: state
+          numeric: true
+
+      - type: custom:auto-entities
+        card:
+          type: glance
+          title: "🌱 Wszystkie rośliny"
+          show_name: true
+          show_state: true
+          show_icon: true
+        filter:
+          include:
+            - entity_id: "sensor.*_dni_do_podlania"
+        sort:
+          method: state
+          numeric: true
+
+{"".join(chr(10) + c for c in plant_cards)}
+"""
+    return PlainTextResponse(yaml, media_type="text/yaml")
+
+
 # ── POST /plants (multipart form + optional photo file) ───────────────────────
 @router.post("", response_model=Plant, status_code=status.HTTP_201_CREATED)
 async def create_plant(
@@ -442,94 +516,5 @@ def fetch_info(plant_id: uuid.UUID, db: Session = Depends(get_db)):
     return plant
 
 
-@router.get("/ha-dashboard", response_class=None)
-def ha_dashboard(db: Session = Depends(get_db)):
-    """Generuje gotowy YAML dashboardu Lovelace dla Home Assistant."""
-    import unicodedata, re
-    from fastapi.responses import PlainTextResponse
-
-    def slugify(text: str) -> str:
-        text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
-        text = text.lower()
-        text = re.sub(r"[^\w]+", "_", text)
-        return text.strip("_")
-
-    plants = db.query(PlantModel).order_by(PlantModel.name).all()
-
-    plant_cards = []
-    for p in plants:
-        slug = slugify(p.name)
-        sensor_days = f"sensor.{slug}_dni_do_podlania"
-        sensor_last = f"sensor.{slug}_ostatnie_podlanie"
-        button_water = f"button.{slug}_podlej"
-        species_line = f"*{p.species}*  " if p.species else ""
-
-        card = f"""\
-      - type: entities
-        title: "{p.name}"
-        icon: mdi:flower
-        entities:
-          - entity: {sensor_days}
-            name: Dni do podlania
-          - entity: {sensor_last}
-            name: Ostatnie podlanie
-          - type: button
-            entity: {button_water}
-            name: Podlej
-            action_name: 💧 Podlej
-        footer:
-          type: graph
-          entity: {sensor_days}
-          hours_to_show: 168"""
-        if species_line:
-            card += f"\n        # {p.species}"
-        plant_cards.append(card)
-
-    cards_yaml = "\n\n".join(plant_cards)
-
-    yaml = f"""\
-title: 🌿 PlantLover
-views:
-  - title: Rośliny
-    path: plantlover
-    icon: mdi:flower
-    cards:
-
-      # ── Do podlania dziś / przeterminowane ────────────────────────────────
-      - type: custom:auto-entities
-        card:
-          type: entities
-          title: "💧 Wymagają podlania"
-          icon: mdi:water-alert
-          show_header_toggle: false
-        filter:
-          include:
-            - entity_id: "sensor.*_dni_do_podlania"
-              state: "0"
-            - entity_id: "sensor.*_dni_do_podlania"
-              state: "< 0"
-        sort:
-          method: state
-          numeric: true
-
-      # ── Wszystkie rośliny posortowane ─────────────────────────────────────
-      - type: custom:auto-entities
-        card:
-          type: glance
-          title: "🌱 Wszystkie rośliny"
-          show_name: true
-          show_state: true
-          show_icon: true
-        filter:
-          include:
-            - entity_id: "sensor.*_dni_do_podlania"
-        sort:
-          method: state
-          numeric: true
-
-      # ── Karty szczegółowe ─────────────────────────────────────────────────
-{cards_yaml}
-"""
-    return PlainTextResponse(yaml, media_type="text/yaml")
 
 
