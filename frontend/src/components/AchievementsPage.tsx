@@ -7,10 +7,10 @@ export default function AchievementsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getAchievements().then((data) => {
-      setAchievements(data);
-      setLoading(false);
-    });
+    api.getAchievements()
+      .then((data) => setAchievements(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const unlocked = achievements.filter((a) => a.unlocked);
@@ -59,15 +59,12 @@ function AchievementCard({ achievement: a }: { achievement: Achievement }) {
   return (
     <div className={`achievement-card ${a.unlocked ? "achievement-card--unlocked" : "achievement-card--locked"}`}>
       <div className="achievement-icon">{a.icon}</div>
-      <div className="achievement-info">
-        <div className="achievement-name">{a.name}</div>
-        <div className="achievement-description">{a.description}</div>
-        {a.unlocked && a.unlocked_at && (
-          <div className="achievement-date">
-            {new Date(a.unlocked_at).toLocaleDateString("pl-PL")}
-          </div>
-        )}
-      </div>
+      <div className="achievement-name">{a.name}</div>
+      {a.unlocked && a.unlocked_at && (
+        <div className="achievement-date">
+          {new Date(a.unlocked_at).toLocaleDateString("pl-PL")}
+        </div>
+      )}
     </div>
   );
 }
