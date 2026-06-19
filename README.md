@@ -1,36 +1,65 @@
 # PlantLover
 
-A full-stack plant management app. Track your plants, log care events, and identify species.
+A full-stack plant management app. Track your plants, log care events, and identify species via the PlantNet API.
 
 ## Stack
 
-- **Backend**: FastAPI + SQLAlchemy 2 + Alembic + SQLite
+- **Backend**: FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL
 - **Frontend**: React 18 + Vite + TypeScript + React Router
+- **Database**: PostgreSQL 16 (via Docker)
 
-## Quick Start
+## Requirements
 
-### 1. Backend
+| Tool       | Version  | Notes                                                         |
+|------------|----------|---------------------------------------------------------------|
+| Python     | 3.11+    | [python.org](https://python.org)                             |
+| Node.js    | 18+      | [nodejs.org](https://nodejs.org)                             |
+| Docker     | any      | [docs.docker.com/get-docker](https://docs.docker.com/get-docker) |
+
+## Quick Install
+
+```bash
+git clone https://github.com/lukaszgdk/plantlover.git
+cd plantlover
+chmod +x install.sh
+./install.sh
+```
+
+The script will:
+
+1. Start a PostgreSQL container via Docker Compose
+2. Create a Python virtual environment and install backend dependencies
+3. Run Alembic database migrations
+4. Build the frontend
+
+## Manual Setup
+
+### 1. Start PostgreSQL
+
+```bash
+docker compose up -d
+```
+
+### 2. Backend
 
 ```bash
 cd backend
 
-# Create and activate a virtual environment
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Run migrations
-DATABASE_URL=sqlite:////data/plantlover.db alembic upgrade head
+cp .env.example .env        # edit if needed
 
-# Start the API server
-DATABASE_URL=sqlite:////data/plantlover.db uvicorn app.main:app --reload
+alembic upgrade head
+
+uvicorn app.main:app --reload
 # → http://localhost:8000
 # → http://localhost:8000/docs  (Swagger UI)
 ```
 
-### 2. Frontend
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -40,52 +69,55 @@ npm run dev
 # → http://localhost:5173
 ```
 
+## Environment Variables
+
+Copy `backend/.env.example` to `backend/.env` and adjust as needed.
+
+| Variable            | Required | Description                                     |
+|---------------------|----------|-------------------------------------------------|
+| `DATABASE_URL`      | yes      | PostgreSQL connection string                    |
+| `PLANTNET_API_KEY`  | no       | API key for species identification (plantnet.org) |
+
 ## Project Structure
 
-```
+```text
 plantlover/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py          # FastAPI app + CORS
-│   │   ├── database.py      # SQLAlchemy engine + session
-│   │   ├── models.py        # ORM models
-│   │   ├── schemas.py       # Pydantic v2 schemas
-│   │   └── routers/
-│   │       └── plants.py    # All /plants endpoints
-│   ├── alembic/             # Migrations
+│   │   ├── main.py        # FastAPI app + CORS
+│   │   ├── database.py    # SQLAlchemy engine + session
+│   │   ├── models.py      # ORM models
+│   │   ├── schemas.py     # Pydantic v2 schemas
+│   │   └── routers/       # API route handlers
+│   ├── alembic/           # Database migrations
 │   ├── alembic.ini
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── .env.example
 ├── frontend/
 │   └── src/
-│       ├── api/plants.ts    # Typed fetch client
-│       ├── types/plant.ts   # Shared TypeScript types
-│       └── components/
-└── .env.example
+│       ├── api/           # Typed fetch client
+│       ├── types/         # TypeScript types
+│       └── components/    # React components
+├── docker-compose.yml
+└── install.sh
 ```
 
-## Environment Variables
+## API Endpoints
 
-| Variable            | Description                                                      |
-|---------------------|------------------------------------------------------------------|
-| `DATABASE_URL`      | SQLite connection string, e.g. `sqlite:////data/plantlover.db`   |
-| `PLANTNET_API_KEY`  | API key for plant identification (plantnet.org)                  |
+| Method | Path                       | Description               |
+|--------|----------------------------|---------------------------|
+| GET    | /plants                    | List all plants           |
+| POST   | /plants                    | Create a plant            |
+| GET    | /plants/{id}               | Get one plant             |
+| PUT    | /plants/{id}               | Update a plant            |
+| DELETE | /plants/{id}               | Delete a plant            |
+| POST   | /plants/{id}/identify      | Identify species          |
+| POST   | /plants/{id}/care-log      | Log a care event          |
 
-## Updating
+## Updating (LXC template)
 
 If you're running the standalone LXC template, use the built-in update script:
 
 ```bash
 plantlover-update
 ```
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | /plants | List all plants |
-| POST | /plants | Create a plant |
-| GET | /plants/{id} | Get one plant |
-| PUT | /plants/{id} | Update a plant |
-| DELETE | /plants/{id} | Delete a plant |
-| POST | /plants/{id}/identify | Identify species |
-| POST | /plants/{id}/care-log | Log a care event |
