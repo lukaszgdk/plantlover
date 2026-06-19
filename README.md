@@ -4,18 +4,12 @@ A full-stack plant management app. Track your plants, log care events, and ident
 
 ## Stack
 
-- **Backend**: FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL
+- **Backend**: FastAPI + SQLAlchemy 2 + Alembic + SQLite
 - **Frontend**: React 18 + Vite + TypeScript + React Router
 
 ## Quick Start
 
-### 1. Start PostgreSQL
-
-```bash
-docker compose up -d
-```
-
-### 2. Backend
+### 1. Backend
 
 ```bash
 cd backend
@@ -27,20 +21,16 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy and configure env
-cp .env.example .env        # edit DATABASE_URL if needed
-
 # Run migrations
-export DATABASE_URL=postgresql://plantlover:plantlover@localhost:5432/plantlover
-alembic upgrade head
+DATABASE_URL=sqlite:////data/plantlover.db alembic upgrade head
 
 # Start the API server
-uvicorn app.main:app --reload
+DATABASE_URL=sqlite:////data/plantlover.db uvicorn app.main:app --reload
 # → http://localhost:8000
 # → http://localhost:8000/docs  (Swagger UI)
 ```
 
-### 3. Frontend
+### 2. Frontend
 
 ```bash
 cd frontend
@@ -70,12 +60,22 @@ plantlover/
 │       ├── api/plants.ts    # Typed fetch client
 │       ├── types/plant.ts   # Shared TypeScript types
 │       └── components/
-│           ├── PlantList.tsx
-│           ├── PlantCard.tsx
-│           ├── PlantDetail.tsx
-│           └── AddPlantForm.tsx
-├── docker-compose.yml
 └── .env.example
+```
+
+## Environment Variables
+
+| Variable            | Description                                                      |
+|---------------------|------------------------------------------------------------------|
+| `DATABASE_URL`      | SQLite connection string, e.g. `sqlite:////data/plantlover.db`   |
+| `PLANTNET_API_KEY`  | API key for plant identification (plantnet.org)                  |
+
+## Updating
+
+If you're running the standalone LXC template, use the built-in update script:
+
+```bash
+plantlover-update
 ```
 
 ## API Endpoints
@@ -87,17 +87,5 @@ plantlover/
 | GET | /plants/{id} | Get one plant |
 | PUT | /plants/{id} | Update a plant |
 | DELETE | /plants/{id} | Delete a plant |
-| POST | /plants/{id}/identify | Identify species (mock) |
+| POST | /plants/{id}/identify | Identify species |
 | POST | /plants/{id}/care-log | Log a care event |
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-
-## Extending
-
-- **Real species identification**: Replace the mock in `routers/plants.py` (`identify_plant`) with a call to the Plant.id API or a vision model.
-- **Auth**: Add FastAPI's `OAuth2PasswordBearer` and a `users` table.
-- **Image uploads**: Add an `/upload` endpoint using `python-multipart` and store files in S3 or locally.
