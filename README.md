@@ -2,6 +2,8 @@
 
 A full-stack plant management app. Track your plants, log care events, and identify species via the PlantNet API.
 
+![PlantLover UI](docs/screenshot.png)
+
 ## Stack
 
 - **Backend**: FastAPI + SQLAlchemy 2 + Alembic + PostgreSQL
