@@ -7,8 +7,14 @@ Create Date: 2026-06-17
 from typing import Sequence, Union
 import uuid
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID
 from alembic import op
+
+
+def _id_type(is_pg: bool):
+    if is_pg:
+        from sqlalchemy.dialects.postgresql import UUID
+        return UUID(as_uuid=True)
+    return sa.String(36)
 
 revision: str = "003"
 down_revision: Union[str, None] = "002"
@@ -25,24 +31,28 @@ _DEFAULT_ROOMS = [
 
 
 def upgrade() -> None:
+    is_pg = op.get_bind().dialect.name == "postgresql"
+    id_t = _id_type(is_pg)
+
     op.create_table(
         "rooms",
-        sa.Column("id", UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", id_t, primary_key=True),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("icon", sa.String(32), nullable=True),
     )
 
-    op.add_column("plants", sa.Column("room_id", UUID(as_uuid=True), nullable=True))
-    op.create_foreign_key(
-        "fk_plants_room_id",
-        "plants", "rooms",
-        ["room_id"], ["id"],
-        ondelete="SET NULL",
-    )
+    op.add_column("plants", sa.Column("room_id", id_t, nullable=True))
+    if is_pg:
+        op.create_foreign_key(
+            "fk_plants_room_id",
+            "plants", "rooms",
+            ["room_id"], ["id"],
+            ondelete="SET NULL",
+        )
 
     rooms_table = sa.table(
         "rooms",
-        sa.column("id", UUID(as_uuid=True)),
+        sa.column("id", id_t),
         sa.column("name", sa.String),
         sa.column("icon", sa.String),
     )
@@ -53,6 +63,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_plants_room_id", "plants", type_="foreignkey")
+    if op.get_bind().dialect.name == "postgresql":
+        op.drop_constraint("fk_plants_room_id", "plants", type_="foreignkey")
     op.drop_column("plants", "room_id")
     op.drop_table("rooms")
