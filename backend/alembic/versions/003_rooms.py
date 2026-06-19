@@ -58,7 +58,7 @@ def upgrade() -> None:
     )
     op.bulk_insert(
         rooms_table,
-        [{"id": uuid.uuid4(), "name": r["name"], "icon": r["icon"]} for r in _DEFAULT_ROOMS],
+        [{"id": str(uuid.uuid4()), "name": r["name"], "icon": r["icon"]} for r in _DEFAULT_ROOMS],
     )
 
 
